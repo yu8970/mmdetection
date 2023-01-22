@@ -128,19 +128,16 @@ def myTestForImg(brand, img_set):
         if not inBrand:
             print(f'[testForImg]: {item} not in brand')
 
-
-
-
 if __name__ == '__main__':
 
     dataRoot = 'D:/dataset/brand'
 
-    order = 2
+    # 修改此处
+    file_name = 'test-8000'
+    img_path = os.path.join(dataRoot, file_name)
 
+    new_json_path = os.path.join(dataRoot, 'jsons', file_name+'.json')
     old_json_path = os.path.join(dataRoot, 'openbrand_train.json')
-
-    img_path = os.path.join(dataRoot, f'train_20210409_{order}')
-    new_json_path = os.path.join(dataRoot, 'jsons' , f'train_{order}.json')
 
     print(f'[main]: old json file path: {old_json_path}')
     print(f'[main]: new json file path: {new_json_path}')

@@ -1,2 +1,0 @@
-
-print('yu shi chao')
