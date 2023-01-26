@@ -12,20 +12,20 @@ data = dict(
         type=dataset_type,
         # 将类别名字添加至 `classes` 字段中
         classes=classes,
-        ann_file='/content/brand/annotations/train-32000.json',
-        img_prefix='/content/brand/images/train-32000'),
+        ann_file='/content/brand/brand/annotations/train-32000.json',
+        img_prefix='/content/brand/brand/images/train-32000'),
     val=dict(
         type=dataset_type,
         # 将类别名字添加至 `classes` 字段中
         classes=classes,
-        ann_file='/content/brand/annotations/val-8000.json',
-        img_prefix='/content/brand/images/val-8000'),
+        ann_file='/content/brand/brand/annotations/val-8000.json',
+        img_prefix='/content/brand/brand/images/val-8000'),
     test=dict(
         type=dataset_type,
         # 将类别名字添加至 `classes` 字段中
         classes=classes,
-        ann_file='/content/brand/annotations/test-8000.json',
-        img_prefix='/content/brand/images/test-8000'))
+        ann_file='/content/brand/brand/annotations/test-8000.json',
+        img_prefix='/content/brand/brand/images/test-8000'))
 
 # 2. 模型设置
 
