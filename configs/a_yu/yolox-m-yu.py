@@ -29,7 +29,7 @@ data = dict(
 
 # 2. 模型设置
 
-# 将所有的 `num_classes` 默认值修改为5（原来为80）
+# 将所有的 `num_classes` 默认值修改为515（原来为80）
 model = dict(
     bbox_head=dict(
         type='YOLOXHead', num_classes=515, in_channels=128, feat_channels=128)
