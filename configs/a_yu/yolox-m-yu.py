@@ -31,19 +31,6 @@ data = dict(
 
 # 将所有的 `num_classes` 默认值修改为5（原来为80）
 model = dict(
-    roi_head=dict(
-        bbox_head=[
-            dict(
-                type='Shared2FCBBoxHead',
-                # 将所有的 `num_classes` 默认值修改为 5（原来为 80）
-                num_classes=515),
-            dict(
-                type='Shared2FCBBoxHead',
-                # 将所有的 `num_classes` 默认值修改为 5（原来为 80）
-                num_classes=515),
-            dict(
-                type='Shared2FCBBoxHead',
-                # 将所有的 `num_classes` 默认值修改为 5（原来为 80）
-                num_classes=515)],
-    # 将所有的 `num_classes` 默认值修改为 5（原来为 80）
-    mask_head=dict(num_classes=515)))
+    bbox_head=dict(
+        type='YOLOXHead', num_classes=515, in_channels=128, feat_channels=128)
+)
