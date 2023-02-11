@@ -130,13 +130,13 @@ def myTestForImg(brand, img_set):
 
 if __name__ == '__main__':
 
-    dataRoot = 'D:/dataset/brand'
+    dataRoot = 'D:\dataset\\brand\\brand20\\brand20\images'
 
     # 修改此处
-    file_name = 'test-8000'
+    file_name = 'val'
     img_path = os.path.join(dataRoot, file_name)
 
-    new_json_path = os.path.join(dataRoot, 'jsons', file_name+'.json')
+    new_json_path = os.path.join(dataRoot, file_name+'.json')
     old_json_path = os.path.join(dataRoot, 'openbrand_train.json')
 
     print(f'[main]: old json file path: {old_json_path}')

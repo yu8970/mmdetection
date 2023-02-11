@@ -20,14 +20,14 @@ def moveFile(old_path, new_path, nums):
 
 if __name__ == '__main__':
 
-    old_file_name = 'train-20000'
-    new_file_name = 'test-8000'
-    nums = 6000
+    old_file_name = 'val'
+    new_file_name = 'val1'
+    nums = 10000
 
-    dataRoot = 'D:/dataset/brand/'
+    dataRoot = 'D:\dataset\\brand\\brand20\\brand20\images'
     old_path = os.path.join(dataRoot, old_file_name)
     new_path = os.path.join(dataRoot, new_file_name)
 
     moveFile(old_path, new_path, nums)
-    # shutil.move('D:/dataset/brand/jsons', 'D:/dataset/brand/test')
+
 
