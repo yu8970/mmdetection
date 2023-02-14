@@ -8,6 +8,8 @@ classes = ('LAMY', 'tumi', 'warrior', 'sandisk', 'belle', 'ThinkPad', 'rolex', '
 dataRoot = '/root/autodl-tmp/brand20'
 
 data = dict(
+    samples_per_gpu=8,
+    workers_per_gpu=8,
     train=dict(
         type=dataset_type,
         # 将类别名字添加至 `classes` 字段中
