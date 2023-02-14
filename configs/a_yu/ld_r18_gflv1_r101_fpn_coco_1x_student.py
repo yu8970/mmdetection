@@ -18,20 +18,20 @@ data = dict(
         type=dataset_type,
         # 将类别名字添加至 `classes` 字段中
         classes=classes,
-        ann_file=os.path.join(dataRoot, '/anns/train.json'),
-        img_prefix=os.path.join(dataRoot, '/images/train')),
+        ann_file='/root/autodl-tmp/brand20/anns/train.json',
+        img_prefix='/root/autodl-tmp/brand20/images/train'),
     val=dict(
         type=dataset_type,
         # 将类别名字添加至 `classes` 字段中
         classes=classes,
-        ann_file=os.path.join(dataRoot, '/anns/val.json'),
-        img_prefix=os.path.join(dataRoot, '/images/val')),
+        ann_file='/root/autodl-tmp/brand20/anns/val.json',
+        img_prefix='/root/autodl-tmp/brand20/images/val'),
     test=dict(
         type=dataset_type,
         # 将类别名字添加至 `classes` 字段中
         classes=classes,
-        ann_file=os.path.join(dataRoot, '/anns/test.json'),
-        img_prefix=os.path.join(dataRoot, '/images/test')))
+        ann_file='/root/autodl-tmp/brand20/anns/test.json',
+        img_prefix='/root/autodl-tmp/brand20/images/test'))
 
 model = dict(
     type='KnowledgeDistillationSingleStageDetector',
