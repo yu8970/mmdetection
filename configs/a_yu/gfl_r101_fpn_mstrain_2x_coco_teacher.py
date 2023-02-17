@@ -33,3 +33,5 @@ model = dict(
     bbox_head=dict(
         type='GFLHead',
         num_classes=515))
+
+lr_config = dict(step=[14, 22])
