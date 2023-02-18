@@ -26,14 +26,7 @@ def single_gpu_test(model,
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
         with torch.no_grad():
-            # result = model(return_loss=False, rescale=True, **data)
-            torch.cuda.synchronize()
-            start = time.time()
             result = model(return_loss=False, rescale=True, **data)
-            torch.cuda.synchronize()
-            end = time.time()
-            total_time = total_time + (end - start)
-            print("   inference time: ", end - start, "s")
 
         batch_size = len(result)
         if show or out_dir:
