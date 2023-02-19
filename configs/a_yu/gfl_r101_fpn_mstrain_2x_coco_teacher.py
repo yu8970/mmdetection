@@ -34,6 +34,6 @@ model = dict(
         type='GFLHead',
         num_classes=515))
 
-lr_config = dict(step=[14, 18])
+lr_config = dict(step=[14, 18, 20])
 # optimizer
 # optimizer = dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001)
