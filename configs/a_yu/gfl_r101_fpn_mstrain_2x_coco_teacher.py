@@ -8,7 +8,7 @@ classes = ('LAMY', 'tumi', 'warrior', 'sandisk', 'belle', 'ThinkPad', 'rolex', '
 dataRoot = '/root/autodl-tmp/brand20'
 
 data = dict(
-    samples_per_gpu=4,
+    samples_per_gpu=2,
     workers_per_gpu=8,
     train=dict(
         type=dataset_type,
@@ -35,4 +35,3 @@ model = dict(
         num_classes=515))
 
 lr_config = dict(step=[14, 22])
-optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0001)
