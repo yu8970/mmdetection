@@ -35,3 +35,4 @@ model = dict(
         num_classes=515))
 
 lr_config = dict(step=[14, 22])
+optimizer = dict(type='SGD', lr=0.001, momentum=0.9, weight_decay=0.0001)
