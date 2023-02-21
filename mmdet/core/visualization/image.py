@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import mmcv
 import numpy as np
 import pycocotools.mask as mask_util
+import os
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
 
@@ -264,8 +265,10 @@ def imshow_det_bboxes(img,
     assert segms is not None or bboxes is not None, \
         'segms and bboxes should not be None at the same time.'
 
-    img = mmcv.imread(img).astype(np.uint8)
-
+    # img = mmcv.imread(img).astype(np.uint8)
+    img = mmcv.imread(img)
+    cut_img = img.copy()
+    img = img.astype(np.uint8)
     if score_thr > 0:
         assert bboxes is not None and bboxes.shape[1] == 5
         scores = bboxes[:, -1]
@@ -302,6 +305,28 @@ def imshow_det_bboxes(img,
         bbox_palette = palette_val(get_palette(bbox_color, max_label + 1))
         colors = [bbox_palette[label] for label in labels[:num_bboxes]]
         draw_bboxes(ax, bboxes, colors, alpha=0.8, thickness=thickness)
+
+        # 裁剪图片
+        cut_set = set() # 去重
+        for i, bbox in enumerate(bboxes):
+            bbox_int = bbox.astype(np.int32)
+            x1 = bbox_int[0]
+            x2 = bbox_int[2]
+            y1 = bbox_int[1]
+            y2 = bbox_int[3]
+            temp = str(x1)+str(x2)+str(y1)+str(y2)
+            if temp in cut_set:
+                continue
+            cut_set.add(temp)
+            img_roi = cut_img[y1:y2, x1:x2]
+            dir_name = os.path.dirname(out_file)
+            file_name = os.path.basename(out_file)
+            cut_path = os.path.join(dir_name, 'cut')
+            if os.path.exists(cut_path) is False:
+                os.mkdir(cut_path)
+            file_name = file_name.split('.')[0]
+            save_path = os.path.join(cut_path, f'{file_name}_{i}.jpg')
+            mmcv.imwrite(img_roi, save_path)
 
         horizontal_alignment = 'left'
         positions = bboxes[:, :2].astype(np.int32) + thickness
