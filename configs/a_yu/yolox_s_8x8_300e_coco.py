@@ -114,7 +114,7 @@ optimizer = dict(
 optimizer_config = dict(grad_clip=None)
 
 max_epochs = 12
-num_last_epochs = 3
+num_last_epochs = 3 # 为了配合数据增强，在最后 num_last_epochs 个 epoch 会采用固定的最小学习率。
 resume_from = None
 interval = 1
 
@@ -126,7 +126,7 @@ lr_config = dict(
     by_epoch=False,
     warmup_by_epoch=True,
     warmup_ratio=1,
-    warmup_iters=5,  # 5 epoch
+    warmup_iters=5,       # 5 iters
     num_last_epochs=num_last_epochs,
     min_lr_ratio=0.05)
 
@@ -158,7 +158,7 @@ evaluation = dict(
     interval=interval,
     dynamic_intervals=[(max_epochs - num_last_epochs, 1)],
     metric='bbox')
-log_config = dict(interval=50)
+log_config = dict(interval=50)  # 50 iters 打印一次log输出
 
 # NOTE: `auto_scale_lr` is for automatically scaling LR,
 # USER SHOULD NOT CHANGE ITS VALUES.
