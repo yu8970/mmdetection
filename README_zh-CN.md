@@ -40,7 +40,7 @@
 [English](README.md) | 简体中文
 
 </div>
-
+# for graduation design
 ## 简介
 
 MMDetection 是一个基于 PyTorch 的目标检测开源工具箱。它是 [OpenMMLab](https://openmmlab.com/) 项目的一部分。
