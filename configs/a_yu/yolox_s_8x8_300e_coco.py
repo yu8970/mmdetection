@@ -126,7 +126,7 @@ lr_config = dict(
     by_epoch=False,
     warmup_by_epoch=True,
     warmup_ratio=1,
-    warmup_iters=5,       # 5 iters
+    warmup_iters=5,       # 5 epoch
     num_last_epochs=num_last_epochs,
     min_lr_ratio=0.05)
 
