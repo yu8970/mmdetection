@@ -113,8 +113,8 @@ optimizer = dict(
     paramwise_cfg=dict(norm_decay_mult=0., bias_decay_mult=0.))
 optimizer_config = dict(grad_clip=None)
 
-max_epochs = 300
-num_last_epochs = 15
+max_epochs = 12
+num_last_epochs = 3
 resume_from = None
 interval = 1
 
@@ -126,7 +126,7 @@ lr_config = dict(
     by_epoch=False,
     warmup_by_epoch=True,
     warmup_ratio=1,
-    warmup_iters=3,  # 5 epoch
+    warmup_iters=5,  # 5 epoch
     num_last_epochs=num_last_epochs,
     min_lr_ratio=0.05)
 
