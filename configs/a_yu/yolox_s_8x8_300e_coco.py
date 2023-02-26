@@ -113,10 +113,10 @@ optimizer = dict(
     paramwise_cfg=dict(norm_decay_mult=0., bias_decay_mult=0.))
 optimizer_config = dict(grad_clip=None)
 
-max_epochs = 300
-num_last_epochs = 15
+max_epochs = 12
+num_last_epochs = 3 # YOLOX 的学习率调度器是带有 warmup 策略的余弦调度策略，并且为了配合数据增强，在最后num_last_epochs 个 epoch 会采用固定的最小学习率
 resume_from = None
-interval = 10
+interval = 1
 
 # learning policy
 lr_config = dict(
