@@ -114,7 +114,7 @@ optimizer = dict(
 optimizer_config = dict(grad_clip=None)
 
 max_epochs = 48
-num_last_epochs = 4  # 为了配合数据增强，在最后 num_last_epochs 个 epoch 会采用固定的最小学习率。
+num_last_epochs = 2  # 为了配合数据增强，在最后 num_last_epochs 个 epoch 会采用固定的最小学习率。
 resume_from = None
 interval = 1
 
