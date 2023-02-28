@@ -87,7 +87,7 @@ test_pipeline = [
 ]
 
 data = dict(
-    samples_per_gpu=16,  # 单个 GPU 的 Batch size
+    samples_per_gpu=8,  # 单个 GPU 的 Batch size
     workers_per_gpu=8,   # 单个 GPU 分配的数据加载线程数
     persistent_workers=True,
     train=train_dataset,
