@@ -106,7 +106,7 @@ data = dict(
 # default 8 gpu
 optimizer = dict(
     type='SGD',
-    lr=0.001,
+    lr=0.0005,
     momentum=0.9,
     weight_decay=5e-4,
     nesterov=True,
@@ -128,7 +128,8 @@ lr_config = dict(
     warmup_ratio=1,
     warmup_iters=1,       # 5 epoch
     num_last_epochs=num_last_epochs,
-    min_lr_ratio=0.05)
+    min_lr_ratio=0.005,
+    step=[8, 11, 23, 30, 40, 45])
 
 runner = dict(type='EpochBasedRunner', max_epochs=max_epochs)
 
