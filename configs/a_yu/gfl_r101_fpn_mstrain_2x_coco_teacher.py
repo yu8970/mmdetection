@@ -1,5 +1,3 @@
-import os.path
-
 _base_ = '../gfl/gfl_r101_fpn_mstrain_2x_coco.py'
 
 dataset_type = 'CocoDataset'
