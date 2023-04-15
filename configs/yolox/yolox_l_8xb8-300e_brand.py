@@ -11,7 +11,7 @@ model = dict(
 
 
 # dataset settings
-data_root = 'data/coco/brand/'
+data_root = '/content/brand/'
 dataset_type = 'CocoDataset'
 
 train_json_path = 'annotations/train-32000.json'
