@@ -122,14 +122,16 @@ class DetLocalVisualizer(Visualizer):
             bboxes = instances.bboxes
             labels = instances.labels
 
-            max_label = int(max(labels) if len(labels) > 0 else 0)
+            max_label = int(len(labels) if len(labels) > 0 else 0)
             text_palette = get_palette(self.text_color, max_label + 1)
-            text_colors = [text_palette[label] for label in labels]
-
-            bbox_color = palette if self.bbox_color is None \
-                else self.bbox_color
+            text_colors = []
+            for i in range(len(labels)):
+                text_colors.append(text_palette[i])
+            bbox_color = palette if self.bbox_color is None else self.bbox_color
             bbox_palette = get_palette(bbox_color, max_label + 1)
-            colors = [bbox_palette[label] for label in labels]
+            colors = []
+            for i in range(len(labels)):
+                colors.append(bbox_palette[i])
             self.draw_bboxes(
                 bboxes,
                 edge_colors=colors,
@@ -142,8 +144,7 @@ class DetLocalVisualizer(Visualizer):
             scales = _get_adaptive_scales(areas)
 
             for i, (pos, label) in enumerate(zip(positions, labels)):
-                label_text = classes[
-                    label] if classes is not None else f'class {label}'
+                label_text = classes[label] if classes is not None else f'class {label}'
                 if 'scores' in instances:
                     score = round(float(instances.scores[i]) * 100, 1)
                     label_text += f': {score}'
