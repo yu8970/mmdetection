@@ -101,7 +101,7 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
     def loss(self, x: Tuple[Tensor], batch_data_samples: SampleList) -> dict:
         """Perform forward propagation and loss calculation of the detection
         head on the features of the upstream network.
-
+        主要做2部分工作：1. 获取feature map；2. 计算loss
         Args:
             x (tuple[Tensor]): Features from the upstream network, each is
                 a 4D-tensor.
@@ -112,7 +112,7 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         Returns:
             dict: A dictionary of loss components.
         """
-        outs = self(x)
+        outs = self(x)   # self(x) 相当于self.__call__(x) , 此处应该相当于forward(x)
 
         outputs = unpack_gt_instances(batch_data_samples)
         (batch_gt_instances, batch_gt_instances_ignore,

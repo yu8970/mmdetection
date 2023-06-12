@@ -19,6 +19,12 @@ from .anchor_head import AnchorHead
 class ATSSHead(AnchorHead):
     """Detection Head of `ATSS <https://arxiv.org/abs/1912.02424>`_.
 
+    ATSS的backbone和RetinaNet完全相同，neck部分add_extra_convs 参数不同，其余完全相同
+    和 RetinaNet 对比，其不同在于：neck 部分采用 P5 生成 stride 更大的特征图，而 RetinaNet 采用 C5
+
+    head是 anchor-based，但参考 FCOS，额外加入了 centerness 分支，同时 Head 部分也是采用 GN，而不是 BN
+
+
     ATSS head structure is similar with FCOS, however ATSS use anchor boxes
     and assign label by Adaptive Training Sample Selection instead max-iou.
 

@@ -76,13 +76,9 @@ class LDHead(GFLHead):
         """
         assert stride[0] == stride[1], 'h stride is not equal to w stride!'
         anchors = anchors.reshape(-1, 4)
-        cls_score = cls_score.permute(0, 2, 3,
-                                      1).reshape(-1, self.cls_out_channels)
-        bbox_pred = bbox_pred.permute(0, 2, 3,
-                                      1).reshape(-1, 4 * (self.reg_max + 1))
-        soft_targets = soft_targets.permute(0, 2, 3,
-                                            1).reshape(-1,
-                                                       4 * (self.reg_max + 1))
+        cls_score = cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
+        bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4 * (self.reg_max + 1))
+        soft_targets = soft_targets.permute(0, 2, 3, 1).reshape(-1, 4 * (self.reg_max + 1))
 
         bbox_targets = bbox_targets.reshape(-1, 4)
         labels = labels.reshape(-1)

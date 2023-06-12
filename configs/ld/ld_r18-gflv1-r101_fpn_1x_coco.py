@@ -39,17 +39,17 @@ model = dict(
         anchor_generator=dict(
             type='AnchorGenerator',
             ratios=[1.0],
-            octave_base_scale=8,
-            scales_per_octave=1,
+            octave_base_scale=8,    # 特征图 anchor 的 base scale, 值越大，所有 anchor 的尺度都会变大
+            scales_per_octave=1,    # 每个特征图有1个尺度
             strides=[8, 16, 32, 64, 128]),
-        loss_cls=dict(
+        loss_cls=dict(                    # 分类损失
             type='QualityFocalLoss',
             use_sigmoid=True,
             beta=2.0,
             loss_weight=1.0),
-        loss_dfl=dict(type='DistributionFocalLoss', loss_weight=0.25),
+        loss_dfl=dict(type='DistributionFocalLoss', loss_weight=0.25),  # 分布焦点损失distribution focal loss
         loss_ld=dict(
-            type='KnowledgeDistillationKLDivLoss', loss_weight=0.25, T=10),
+            type='KnowledgeDistillationKLDivLoss', loss_weight=0.25, T=10),  # 定位 logit loss, KL-Divergence
         reg_max=16,
         loss_bbox=dict(type='GIoULoss', loss_weight=2.0)),
     # training and testing settings
