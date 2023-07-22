@@ -439,12 +439,12 @@ class AbandonTeaHead(AnchorHead):
             weight_targets_aban = weight_targets_aban.max(dim=1)[0][pos_inds]
             pos_bbox_pred_corners_aban = self.integral(pos_bbox_pred_aban)
             pos_decode_bbox_pred_aban = self.bbox_coder.decode(pos_anchor_centers, pos_bbox_pred_corners_aban)
-
-            score_aban = score
-            score_aban[pos_inds] = bbox_overlaps(
-                pos_decode_bbox_pred_aban.detach(),
-                pos_decode_bbox_targets,
-                is_aligned=True)
+            # todo
+            # score_aban = score
+            # score_aban[pos_inds] = bbox_overlaps(
+            #     pos_decode_bbox_pred_aban.detach(),
+            #     pos_decode_bbox_targets,
+            #     is_aligned=True)
             # 解耦模块 end
 
             # regression loss
@@ -480,10 +480,10 @@ class AbandonTeaHead(AnchorHead):
             weight=label_weights,
             avg_factor=avg_factor)
 
-        # abandon cls loss  解耦模块
+        # abandon cls loss  解耦模块 todo
         loss_cls_aban = self.loss_cls(
             cls_score_aban,
-            (labels, score_aban),
+            (labels, score),
             weight=label_weights,
             avg_factor=avg_factor
         )
