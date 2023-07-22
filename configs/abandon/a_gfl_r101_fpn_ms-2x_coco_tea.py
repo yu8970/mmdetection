@@ -33,6 +33,7 @@ model = dict(
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
+        num_dcn=0,
         anchor_generator=dict(
             type='AnchorGenerator',
             ratios=[1.0],
