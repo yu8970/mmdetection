@@ -34,6 +34,10 @@ model = dict(
         stacked_convs=4,
         feat_channels=256,
         num_dcn=0,
+        bbox_coder_aban=dict(
+            type='DeltaXYWHBBoxCoder',
+            target_means=[.0, .0, .0, .0],
+            target_stds=[0.1, 0.1, 0.2, 0.2]),
         anchor_generator=dict(
             type='AnchorGenerator',
             ratios=[1.0],
@@ -45,6 +49,10 @@ model = dict(
             use_sigmoid=True,
             beta=2.0,
             loss_weight=1.0),
+        loss_bbox=dict(
+            type='GIoULoss',
+            loss_weight=2.0
+        ),
         loss_dfl=dict(
             type='DistributionFocalLoss',
             loss_weight=0.25),
@@ -58,11 +66,7 @@ model = dict(
             type='GIoULoss',
             loss_weight=0.5
         ),
-        reg_max=16,
-        loss_bbox=dict(
-            type='GIoULoss',
-            loss_weight=2.0
-        )),
+        reg_max=16),
     # training and testing settings
     train_cfg=dict(
         assigner=dict(type='ATSSAssigner', topk=9),

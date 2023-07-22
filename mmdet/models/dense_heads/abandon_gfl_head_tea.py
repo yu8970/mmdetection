@@ -108,6 +108,11 @@ class AbandonTeaHead(AnchorHead):
                  in_channels: int,
                  stacked_convs: int = 4,
                  conv_cfg: OptConfigType = None,
+                 bbox_coder_aban: OptConfigType = dict(
+                     type='DeltaXYWHBBoxCoder',
+                     target_means=[.0, .0, .0, .0],
+                     target_stds=[0.1, 0.1, 0.2, 0.2]
+                 ),
                  norm_cfg: ConfigType = dict(
                      type='GN', num_groups=32, requires_grad=True),
                  loss_dfl: ConfigType = dict(
@@ -157,6 +162,7 @@ class AbandonTeaHead(AnchorHead):
         self.num_dcn = num_dcn
         self.loss_cls_aban = MODELS.build(loss_cls_aban)
         self.loss_bbox_aban = MODELS.build(loss_bbox_aban)
+        self.bbox_coder_aban = bbox_coder_aban
 
     def _init_layers(self) -> None:
         """Initialize layers of the head."""
@@ -311,15 +317,13 @@ class AbandonTeaHead(AnchorHead):
         elif self.anchor_type == 'anchor_based':
             reg_dist = scale(self.tood_reg(reg_feat)).float()
             reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
-            reg_bbox = self.bbox_coder.decode(anchor, reg_dist).reshape(
-                b, h, w, 4).permute(0, 3, 1, 2) / stride
+            reg_bbox = self.bbox_coder_aban.decode(anchor, reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2) / stride
         else:
             raise NotImplementedError(
                 f'Unknown anchor type: {self.anchor_type}.'
                 f'Please use `anchor_free` or `anchor_based`.')
         reg_offset = self.reg_offset_module(feat)
-        bbox_pred = self.deform_sampling(reg_bbox.contiguous(),
-                                         reg_offset.contiguous())
+        bbox_pred = self.deform_sampling(reg_bbox.contiguous(), reg_offset.contiguous())
 
         # After deform_sampling, some boxes will become invalid (The
         # left-top point is at the right or bottom of the right-bottom

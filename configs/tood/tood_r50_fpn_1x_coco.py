@@ -59,7 +59,10 @@ model = dict(
             activated=True,  # use probability instead of logit as input
             beta=2.0,
             loss_weight=1.0),
-        loss_bbox=dict(type='GIoULoss', loss_weight=2.0)),
+        loss_bbox=dict(
+            type='GIoULoss',
+            loss_weight=2.0)
+    ),
     train_cfg=dict(
         initial_epoch=4,
         initial_assigner=dict(type='ATSSAssigner', topk=9),

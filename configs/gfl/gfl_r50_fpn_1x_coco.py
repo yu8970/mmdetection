@@ -44,9 +44,13 @@ model = dict(
             use_sigmoid=True,
             beta=2.0,
             loss_weight=1.0),
-        loss_dfl=dict(type='DistributionFocalLoss', loss_weight=0.25),
-        reg_max=16,
-        loss_bbox=dict(type='GIoULoss', loss_weight=2.0)),
+        loss_bbox=dict(
+            type='GIoULoss',
+            loss_weight=2.0),
+        loss_dfl=dict(
+            type='DistributionFocalLoss',
+            loss_weight=0.25),
+        reg_max=16),
     # training and testing settings
     train_cfg=dict(
         assigner=dict(type='ATSSAssigner', topk=9),
