@@ -313,11 +313,11 @@ class AbandonTeaHead(AnchorHead):
             reg_dist = scale(self.tood_reg(reg_feat).exp()).float()
             reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
             reg_bbox = distance2bbox(
-                self.anchor_center(anchor) / stride, reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2)  # (b, c, h, w)
+                self.anchor_center(anchor) / stride[0], reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2)  # (b, c, h, w)
         elif self.anchor_type == 'anchor_based':
             reg_dist = scale(self.tood_reg(reg_feat)).float()
             reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
-            reg_bbox = self.bbox_coder_aban.decode(anchor, reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2) / stride
+            reg_bbox = self.bbox_coder_aban.decode(anchor, reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2) / stride[0]
         else:
             raise NotImplementedError(
                 f'Unknown anchor type: {self.anchor_type}.'
@@ -394,7 +394,7 @@ class AbandonTeaHead(AnchorHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
-        assert stride[0] == stride[1], 'h stride is not equal to w stride!'
+        assert stride[0] == stride[1], 'h stride is not equal to w stride!'  # 缩放的比例
         anchors = anchors.reshape(-1, 4)
         cls_score = cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
         cls_score_aban = cls_score_aban.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
