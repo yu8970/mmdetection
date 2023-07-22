@@ -179,7 +179,7 @@ class AbandonTeaHead(AnchorHead):
         self.relu_aban = nn.ReLU()
         self.inter_convs = nn.ModuleList()
         for i in range(self.stacked_convs):
-            if i < self.num_dcn:
+            if i < 0: # self.num_dcn
                 conv_cfg = dict(type='DCNv2', deform_groups=4)
             else:
                 conv_cfg = self.conv_cfg
