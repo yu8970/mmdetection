@@ -162,7 +162,7 @@ class AbandonTeaHead(AnchorHead):
         self.num_dcn = num_dcn
         self.loss_cls_aban = MODELS.build(loss_cls_aban)
         self.loss_bbox_aban = MODELS.build(loss_bbox_aban)
-        self.bbox_coder_aban = bbox_coder_aban
+        self.bbox_coder_aban = MODELS.build(bbox_coder_aban)
 
     def _init_layers(self) -> None:
         """Initialize layers of the head."""
