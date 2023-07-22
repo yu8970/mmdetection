@@ -263,18 +263,15 @@ class GFLHead(AnchorHead):
         """
         assert stride[0] == stride[1], 'h stride is not equal to w stride!'
         anchors = anchors.reshape(-1, 4)
-        cls_score = cls_score.permute(0, 2, 3,
-                                      1).reshape(-1, self.cls_out_channels)
-        bbox_pred = bbox_pred.permute(0, 2, 3,
-                                      1).reshape(-1, 4 * (self.reg_max + 1))
+        cls_score = cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
+        bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4 * (self.reg_max + 1))
         bbox_targets = bbox_targets.reshape(-1, 4)
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
 
         # FG cat_id: [0, num_classes -1], BG cat_id: num_classes
         bg_class_ind = self.num_classes
-        pos_inds = ((labels >= 0)
-                    & (labels < bg_class_ind)).nonzero().squeeze(1)
+        pos_inds = ((labels >= 0) & (labels < bg_class_ind)).nonzero().squeeze(1)
         score = label_weights.new_zeros(labels.shape)
 
         if len(pos_inds) > 0:
@@ -286,8 +283,7 @@ class GFLHead(AnchorHead):
             weight_targets = cls_score.detach().sigmoid()
             weight_targets = weight_targets.max(dim=1)[0][pos_inds]
             pos_bbox_pred_corners = self.integral(pos_bbox_pred)
-            pos_decode_bbox_pred = self.bbox_coder.decode(
-                pos_anchor_centers, pos_bbox_pred_corners)
+            pos_decode_bbox_pred = self.bbox_coder.decode(pos_anchor_centers, pos_bbox_pred_corners)
             pos_decode_bbox_targets = pos_bbox_targets / stride[0]
             score[pos_inds] = bbox_overlaps(
                 pos_decode_bbox_pred.detach(),
@@ -318,7 +314,8 @@ class GFLHead(AnchorHead):
 
         # cls (qfl) loss
         loss_cls = self.loss_cls(
-            cls_score, (labels, score),
+            cls_score,
+            (labels, score),
             weight=label_weights,
             avg_factor=avg_factor)
 

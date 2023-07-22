@@ -189,9 +189,7 @@ class TOODHead(ATSSHead):
 
         self.tood_cls = nn.Conv2d(
             self.feat_channels,
-            self.num_base_priors * self.cls_out_channels,
-            3,
-            padding=1)
+            self.num_base_priors * self.cls_out_channels, 3, padding=1)
         self.tood_reg = nn.Conv2d(
             self.feat_channels, self.num_base_priors * 4, 3, padding=1)
 
@@ -204,8 +202,7 @@ class TOODHead(ATSSHead):
                       self.feat_channels // 4, 1), nn.ReLU(inplace=True),
             nn.Conv2d(self.feat_channels // 4, 4 * 2, 3, padding=1))
 
-        self.scales = nn.ModuleList(
-            [Scale(1.0) for _ in self.prior_generator.strides])
+        self.scales = nn.ModuleList([Scale(1.0) for _ in self.prior_generator.strides])
 
     def init_weights(self) -> None:
         """Initialize weights of the head."""
@@ -244,11 +241,9 @@ class TOODHead(ATSSHead):
         """
         cls_scores = []
         bbox_preds = []
-        for idx, (x, scale, stride) in enumerate(
-                zip(feats, self.scales, self.prior_generator.strides)):
+        for idx, (x, scale, stride) in enumerate(zip(feats, self.scales, self.prior_generator.strides)):
             b, c, h, w = x.shape
-            anchor = self.prior_generator.single_level_grid_priors(
-                (h, w), idx, device=x.device)
+            anchor = self.prior_generator.single_level_grid_priors((h, w), idx, device=x.device)
             anchor = torch.cat([anchor for _ in range(b)])
             # extract task interactive features
             inter_feats = []
@@ -263,9 +258,9 @@ class TOODHead(ATSSHead):
             reg_feat = self.reg_decomp(feat, avg_feat)
 
             # cls prediction and alignment
-            cls_logits = self.tood_cls(cls_feat)
-            cls_prob = self.cls_prob_module(feat)
-            cls_score = sigmoid_geometric_mean(cls_logits, cls_prob)
+            cls_logits = self.tood_cls(cls_feat)    # P Z_task
+            cls_prob = self.cls_prob_module(feat)   # M
+            cls_score = sigmoid_geometric_mean(cls_logits, cls_prob) # P_align
 
             # reg prediction and alignment
             if self.anchor_type == 'anchor_free':
@@ -273,8 +268,7 @@ class TOODHead(ATSSHead):
                 reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
                 reg_bbox = distance2bbox(
                     self.anchor_center(anchor) / stride[0],
-                    reg_dist).reshape(b, h, w, 4).permute(0, 3, 1,
-                                                          2)  # (b, c, h, w)
+                    reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2)  # (b, c, h, w)
             elif self.anchor_type == 'anchor_based':
                 reg_dist = scale(self.tood_reg(reg_feat)).float()
                 reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
@@ -356,39 +350,35 @@ class TOODHead(ATSSHead):
         """
         assert stride[0] == stride[1], 'h stride is not equal to w stride!'
         anchors = anchors.reshape(-1, 4)
-        cls_score = cls_score.permute(0, 2, 3, 1).reshape(
-            -1, self.cls_out_channels).contiguous()
+        cls_score = cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels).contiguous()
         bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4)
         bbox_targets = bbox_targets.reshape(-1, 4)
         labels = labels.reshape(-1)
-        alignment_metrics = alignment_metrics.reshape(-1)
+        alignment_metrics = alignment_metrics.reshape(-1)  # TOOD多的部分
         label_weights = label_weights.reshape(-1)
-        targets = labels if self.epoch < self.initial_epoch else (
-            labels, alignment_metrics)
-        cls_loss_func = self.initial_loss_cls \
-            if self.epoch < self.initial_epoch else self.loss_cls
 
-        loss_cls = cls_loss_func(
-            cls_score, targets, label_weights, avg_factor=1.0)
+        # TOOD多的部分 start
+        targets = labels if self.epoch < self.initial_epoch else (labels, alignment_metrics)
+        cls_loss_func = self.initial_loss_cls if self.epoch < self.initial_epoch else self.loss_cls
+        # TOOD多的部分 end
+        loss_cls = cls_loss_func(cls_score, targets, label_weights, avg_factor=1.0)
+
 
         # FG cat_id: [0, num_classes -1], BG cat_id: num_classes
         bg_class_ind = self.num_classes
-        pos_inds = ((labels >= 0)
-                    & (labels < bg_class_ind)).nonzero().squeeze(1)
+        pos_inds = ((labels >= 0) & (labels < bg_class_ind)).nonzero().squeeze(1)
 
         if len(pos_inds) > 0:
             pos_bbox_targets = bbox_targets[pos_inds]
             pos_bbox_pred = bbox_pred[pos_inds]
             pos_anchors = anchors[pos_inds]
 
-            pos_decode_bbox_pred = pos_bbox_pred
+            pos_decode_bbox_pred = pos_bbox_pred   # TOOD多的部分
             pos_decode_bbox_targets = pos_bbox_targets / stride[0]
 
             # regression loss
-            pos_bbox_weight = self.centerness_target(
-                pos_anchors, pos_bbox_targets
-            ) if self.epoch < self.initial_epoch else alignment_metrics[
-                pos_inds]
+            pos_bbox_weight = self.centerness_target(pos_anchors, pos_bbox_targets) \
+                if self.epoch < self.initial_epoch else alignment_metrics[pos_inds]
 
             loss_bbox = self.loss_bbox(
                 pos_decode_bbox_pred,
@@ -399,8 +389,7 @@ class TOODHead(ATSSHead):
             loss_bbox = bbox_pred.sum() * 0
             pos_bbox_weight = bbox_targets.new_tensor(0.)
 
-        return loss_cls, loss_bbox, alignment_metrics.sum(
-        ), pos_bbox_weight.sum()
+        return loss_cls, loss_bbox, alignment_metrics.sum(), pos_bbox_weight.sum()
 
     def loss_by_feat(
             self,
@@ -436,19 +425,12 @@ class TOODHead(ATSSHead):
         assert len(featmap_sizes) == self.prior_generator.num_levels
 
         device = cls_scores[0].device
-        anchor_list, valid_flag_list = self.get_anchors(
-            featmap_sizes, batch_img_metas, device=device)
+        anchor_list, valid_flag_list = self.get_anchors(featmap_sizes, batch_img_metas, device=device)
 
-        flatten_cls_scores = torch.cat([
-            cls_score.permute(0, 2, 3, 1).reshape(num_imgs, -1,
-                                                  self.cls_out_channels)
-            for cls_score in cls_scores
-        ], 1)
-        flatten_bbox_preds = torch.cat([
-            bbox_pred.permute(0, 2, 3, 1).reshape(num_imgs, -1, 4) * stride[0]
-            for bbox_pred, stride in zip(bbox_preds,
-                                         self.prior_generator.strides)
-        ], 1)
+        flatten_cls_scores = torch.cat([cls_score.permute(0, 2, 3, 1)
+                                       .reshape(num_imgs, -1, self.cls_out_channels) for cls_score in cls_scores], 1)
+        flatten_bbox_preds = torch.cat([bbox_pred.permute(0, 2, 3, 1)
+                                       .reshape(num_imgs, -1, 4) * stride[0] for bbox_pred, stride in zip(bbox_preds, self.prior_generator.strides)], 1)
 
         cls_reg_targets = self.get_targets(
             flatten_cls_scores,

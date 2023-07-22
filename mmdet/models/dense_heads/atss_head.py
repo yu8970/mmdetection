@@ -208,24 +208,31 @@ class ATSSHead(AnchorHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
-
+        # 调整后的形状 (N * num_total_anchors, 4)，将每个尺度级别上的锚点合并到一个维度上
         anchors = anchors.reshape(-1, 4)
-        cls_score = cls_score.permute(0, 2, 3, 1).reshape(
-            -1, self.cls_out_channels).contiguous()
+        # (N * H * W * num_anchors, cls_out_channels)，其中每个行代表一个像素位置上的所有锚点对应的类别得分。
+        cls_score = cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels).contiguous()
+        #  (N * H * W * num_anchors, 4)，其中每一行代表一个像素位置上的所有锚点对应的边界框偏移量。
         bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4)
         centerness = centerness.permute(0, 2, 3, 1).reshape(-1)
+        #  (N * num_total_anchors, 4)，其中每一行代表一个锚点的边界框回归目标权重。
         bbox_targets = bbox_targets.reshape(-1, 4)
+        #  (N * num_total_anchors)，其中所有的标签都被展平到一个维度上。
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
 
         # classification loss
         loss_cls = self.loss_cls(
-            cls_score, labels, label_weights, avg_factor=avg_factor)
+            cls_score,
+            labels,
+            label_weights,
+            avg_factor=avg_factor
+        )
 
+        # 找出属于前景类别（类别索引在 [0, num_classes-1] 范围内）的样本索引，并将其存储在 pos_inds 变量中
         # FG cat_id: [0, num_classes -1], BG cat_id: num_classes
         bg_class_ind = self.num_classes
-        pos_inds = ((labels >= 0)
-                    & (labels < bg_class_ind)).nonzero().squeeze(1)
+        pos_inds = ((labels >= 0) & (labels < bg_class_ind)).nonzero().squeeze(1)
 
         if len(pos_inds) > 0:
             pos_bbox_targets = bbox_targets[pos_inds]
@@ -246,8 +253,7 @@ class ATSSHead(AnchorHead):
                 avg_factor=1.0)
 
             # centerness loss
-            loss_centerness = self.loss_centerness(
-                pos_centerness, centerness_targets, avg_factor=avg_factor)
+            loss_centerness = self.loss_centerness(pos_centerness, centerness_targets, avg_factor=avg_factor)
 
         else:
             loss_bbox = bbox_pred.sum() * 0
