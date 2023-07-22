@@ -363,8 +363,7 @@ class AbandonTeaHead(AnchorHead):
         return torch.stack([anchors_cx, anchors_cy], dim=-1)
 
     def loss_by_feat_single(self, cls_score_aban: Tensor, bbox_pred_aban: Tensor,
-                            anchors: Tensor, cls_score: Tensor,
-                            bbox_pred: Tensor, labels: Tensor,
+                            anchors: Tensor, cls_score: Tensor,bbox_pred: Tensor, labels: Tensor,
                             label_weights: Tensor, bbox_targets: Tensor,
                             stride: Tuple[int], avg_factor: int) -> dict:
         """Calculate the loss of a single scale level based on the features
@@ -398,7 +397,7 @@ class AbandonTeaHead(AnchorHead):
         anchors = anchors.reshape(-1, 4)
         cls_score = cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
         cls_score_aban = cls_score_aban.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
-        bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4 * (self.reg_max + 1))
+        bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4 * (self.reg_max + 1))  # todo fix
         bbox_pred_aban = bbox_pred_aban.permute(0, 2, 3, 1).reshape(-1, 4 * (self.reg_max + 1))
         bbox_targets = bbox_targets.reshape(-1, 4)
         labels = labels.reshape(-1)
@@ -493,10 +492,10 @@ class AbandonTeaHead(AnchorHead):
 
     def loss_by_feat(
             self,
-            cls_scores_aban: List[Tensor],
-            bbox_preds_aban: List[Tensor],
             cls_scores: List[Tensor],
             bbox_preds: List[Tensor],
+            cls_scores_aban: List[Tensor],
+            bbox_preds_aban: List[Tensor],
             batch_gt_instances: InstanceList,
             batch_img_metas: List[dict],
             batch_gt_instances_ignore: OptInstanceList = None) -> dict:

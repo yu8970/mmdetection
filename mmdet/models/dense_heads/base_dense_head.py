@@ -112,7 +112,7 @@ class BaseDenseHead(BaseModule, metaclass=ABCMeta):
         Returns:
             dict: A dictionary of loss components.
         """
-        outs = self(x)   # self(x) 相当于self.__call__(x) , 此处应该相当于forward(x)
+        outs = self(x)   # self(x) 相当于self.__call__(x) , 此处应该相当于head.forward(x)
 
         outputs = unpack_gt_instances(batch_data_samples)
         (batch_gt_instances, batch_gt_instances_ignore,
