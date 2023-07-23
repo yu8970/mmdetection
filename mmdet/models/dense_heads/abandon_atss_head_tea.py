@@ -413,6 +413,8 @@ class AbandonATSSTeaHead(AnchorHead):
             loss_bbox = bbox_pred.sum() * 0
             loss_centerness = centerness.sum() * 0
             centerness_targets = bbox_targets.new_tensor(0.)
+            loss_bbox_aban = bbox_pred_aban.sum() * 0
+            pos_bbox_weight_aban = bbox_targets_aban.new_tensor(0.)
 
         return loss_cls, loss_bbox, loss_centerness, centerness_targets.sum(), loss_cls_aban, loss_bbox_aban, alignment_metrics.sum(),pos_bbox_weight_aban.sum()
 
