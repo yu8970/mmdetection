@@ -96,41 +96,19 @@ class ATSSHead(AnchorHead):
         for i in range(self.stacked_convs):
             chn = self.in_channels if i == 0 else self.feat_channels
             self.cls_convs.append(
-                ConvModule(
-                    chn,
-                    self.feat_channels,
-                    3,
-                    stride=1,
-                    padding=1,
-                    conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg))
+                ConvModule(chn, self.feat_channels, 3, stride=1, padding=1, conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
             self.reg_convs.append(
-                ConvModule(
-                    chn,
-                    self.feat_channels,
-                    3,
-                    stride=1,
-                    padding=1,
-                    conv_cfg=self.conv_cfg,
-                    norm_cfg=self.norm_cfg))
+                ConvModule(chn, self.feat_channels, 3, stride=1, padding=1, conv_cfg=self.conv_cfg, norm_cfg=self.norm_cfg))
         pred_pad_size = self.pred_kernel_size // 2
-        self.atss_cls = nn.Conv2d(
-            self.feat_channels,
-            self.num_anchors * self.cls_out_channels,
-            self.pred_kernel_size,
-            padding=pred_pad_size)
-        self.atss_reg = nn.Conv2d(
-            self.feat_channels,
-            self.num_base_priors * 4,
-            self.pred_kernel_size,
-            padding=pred_pad_size)
+        self.atss_cls = nn.Conv2d(self.feat_channels, self.num_anchors * self.cls_out_channels, self.pred_kernel_size, padding=pred_pad_size)
+        self.atss_reg = nn.Conv2d(self.feat_channels, self.num_base_priors * 4, self.pred_kernel_size, padding=pred_pad_size)
+        self.scales = nn.ModuleList([Scale(1.0) for _ in self.prior_generator.strides])
         self.atss_centerness = nn.Conv2d(
             self.feat_channels,
             self.num_base_priors * 1,
             self.pred_kernel_size,
             padding=pred_pad_size)
-        self.scales = nn.ModuleList(
-            [Scale(1.0) for _ in self.prior_generator.strides])
+
 
     def forward(self, x: Tuple[Tensor]) -> Tuple[List[Tensor]]:
         """Forward features from the upstream network.

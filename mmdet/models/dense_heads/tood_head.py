@@ -37,15 +37,15 @@ class TaskDecomposition(nn.Module):
     """
 
     def __init__(self,
-                 feat_channels: int,
-                 stacked_convs: int,
+                 feat_channels: int,  # 256
+                 stacked_convs: int,  # 6
                  la_down_rate: int = 8,
                  conv_cfg: OptConfigType = None,
                  norm_cfg: OptConfigType = None) -> None:
         super().__init__()
-        self.feat_channels = feat_channels
-        self.stacked_convs = stacked_convs
-        self.in_channels = self.feat_channels * self.stacked_convs
+        self.feat_channels = feat_channels   # 256
+        self.stacked_convs = stacked_convs   # 6
+        self.in_channels = self.feat_channels * self.stacked_convs  # # 256x6=1536
         self.norm_cfg = norm_cfg
         self.layer_attention = nn.Sequential(
             nn.Conv2d(self.in_channels, self.in_channels // la_down_rate, 1),
@@ -54,7 +54,8 @@ class TaskDecomposition(nn.Module):
                 self.in_channels // la_down_rate,
                 self.stacked_convs,
                 1,
-                padding=0), nn.Sigmoid())
+                padding=0),
+            nn.Sigmoid())
 
         self.reduction_conv = ConvModule(
             self.in_channels,
@@ -85,15 +86,12 @@ class TaskDecomposition(nn.Module):
         # here we first compute the product between layer attention weight and
         # conv weight, and then compute the convolution between new conv weight
         # and feature map, in order to save memory and FLOPs.
-        conv_weight = weight.reshape(
-            b, 1, self.stacked_convs,
-            1) * self.reduction_conv.conv.weight.reshape(
-                1, self.feat_channels, self.stacked_convs, self.feat_channels)
-        conv_weight = conv_weight.reshape(b, self.feat_channels,
-                                          self.in_channels)
+        # 在这里，我们首先计算层注意力权重和reduction_conv权重之间的乘积，然后计算新的conv权重和特征图之间的卷积，以节省内存和FLOP。
+        conv_weight = weight.reshape(b, 1, self.stacked_convs, 1) \
+                      * self.reduction_conv.conv.weight.reshape(1, self.feat_channels, self.stacked_convs, self.feat_channels)
+        conv_weight = conv_weight.reshape(b, self.feat_channels, self.in_channels)
         feat = feat.reshape(b, self.in_channels, h * w)
-        feat = torch.bmm(conv_weight, feat).reshape(b, self.feat_channels, h,
-                                                    w)
+        feat = torch.bmm(conv_weight, feat).reshape(b, self.feat_channels, h, w)
         if self.norm_cfg is not None:
             feat = self.reduction_conv.norm(feat)
         feat = self.reduction_conv.activate(feat)
@@ -144,17 +142,14 @@ class TOODHead(ATSSHead):
         assert anchor_type in ['anchor_free', 'anchor_based']
         self.num_dcn = num_dcn
         self.anchor_type = anchor_type
-        super().__init__(
-            num_classes=num_classes, in_channels=in_channels, **kwargs)
+        super().__init__(num_classes=num_classes, in_channels=in_channels, **kwargs)
 
         if self.train_cfg:
             self.initial_epoch = self.train_cfg['initial_epoch']
-            self.initial_assigner = TASK_UTILS.build(
-                self.train_cfg['initial_assigner'])
+            self.initial_assigner = TASK_UTILS.build(self.train_cfg['initial_assigner'])
             self.initial_loss_cls = MODELS.build(initial_loss_cls)
             self.assigner = self.initial_assigner
-            self.alignment_assigner = TASK_UTILS.build(
-                self.train_cfg['assigner'])
+            self.alignment_assigner = TASK_UTILS.build(self.train_cfg['assigner'])
             self.alpha = self.train_cfg['alpha']
             self.beta = self.train_cfg['beta']
 
@@ -162,12 +157,12 @@ class TOODHead(ATSSHead):
         """Initialize layers of the head."""
         self.relu = nn.ReLU(inplace=True)
         self.inter_convs = nn.ModuleList()
-        for i in range(self.stacked_convs):
-            if i < self.num_dcn:
-                conv_cfg = dict(type='DCNv2', deform_groups=4)
+        for i in range(self.stacked_convs):  # stacked_convs = 6
+            if i < self.num_dcn:   # num_dcn目前是0
+                conv_cfg = dict(type='DCNv2', deform_groups=4)  # 用于指定在前几个卷积层中采用特殊类型的卷积（可能是带有可变形卷积操作的 DCNv2）
             else:
                 conv_cfg = self.conv_cfg
-            chn = self.in_channels if i == 0 else self.feat_channels
+            chn = self.in_channels if i == 0 else self.feat_channels  #  feat_channels = 256
             self.inter_convs.append(
                 ConvModule(
                     chn,
@@ -189,17 +184,20 @@ class TOODHead(ATSSHead):
 
         self.tood_cls = nn.Conv2d(
             self.feat_channels,
-            self.num_base_priors * self.cls_out_channels, 3, padding=1)
+            self.num_base_priors * self.cls_out_channels,
+            3,
+            padding=1)
         self.tood_reg = nn.Conv2d(
-            self.feat_channels, self.num_base_priors * 4, 3, padding=1)
+            self.feat_channels,
+            self.num_base_priors * 4,
+            3,
+            padding=1)
 
         self.cls_prob_module = nn.Sequential(
-            nn.Conv2d(self.feat_channels * self.stacked_convs,
-                      self.feat_channels // 4, 1), nn.ReLU(inplace=True),
+            nn.Conv2d(self.feat_channels * self.stacked_convs, self.feat_channels // 4, 1), nn.ReLU(inplace=True),
             nn.Conv2d(self.feat_channels // 4, 1, 3, padding=1))
         self.reg_offset_module = nn.Sequential(
-            nn.Conv2d(self.feat_channels * self.stacked_convs,
-                      self.feat_channels // 4, 1), nn.ReLU(inplace=True),
+            nn.Conv2d(self.feat_channels * self.stacked_convs, self.feat_channels // 4, 1), nn.ReLU(inplace=True),
             nn.Conv2d(self.feat_channels // 4, 4 * 2, 3, padding=1))
 
         self.scales = nn.ModuleList([Scale(1.0) for _ in self.prior_generator.strides])
@@ -244,47 +242,55 @@ class TOODHead(ATSSHead):
         for idx, (x, scale, stride) in enumerate(zip(feats, self.scales, self.prior_generator.strides)):
             b, c, h, w = x.shape
             anchor = self.prior_generator.single_level_grid_priors((h, w), idx, device=x.device)
+            # 这里将 anchor 进行重复拼接，使其适应整个批量的输入。
+            # 通过 torch.cat 函数，将生成的锚框 anchor 按照 b 的维度（batch size）进行重复拼接，使得每个输入样本都有相同的锚框。
             anchor = torch.cat([anchor for _ in range(b)])
             # extract task interactive features
+            # 按式(1)提取task-interactive特征
             inter_feats = []
             for inter_conv in self.inter_convs:
                 x = inter_conv(x)
                 inter_feats.append(x)
             feat = torch.cat(inter_feats, 1)
 
-            # task decomposition
-            avg_feat = F.adaptive_avg_pool2d(feat, (1, 1))
+            # task decomposition 任务分解，对应式（2）-式（4）
+            # 对特征进行自适应平均池化，将特征尺寸转为1*1
+            avg_feat = F.adaptive_avg_pool2d(feat, (1, 1))  # X^{inter}_{k} -> X^{inter}, (2,1536,38,38),1536=256x6
             cls_feat = self.cls_decomp(feat, avg_feat)
             reg_feat = self.reg_decomp(feat, avg_feat)
 
             # cls prediction and alignment
-            cls_logits = self.tood_cls(cls_feat)    # P Z_task
-            cls_prob = self.cls_prob_module(feat)   # M
+            cls_logits = self.tood_cls(cls_feat)    # Z_task, P, 分类
+            cls_prob = self.cls_prob_module(feat)   # M/O, M
+            # sigmoid_geometric_mean是将入参分别取sigmoid、相乘、开根，对应式（5）
             cls_score = sigmoid_geometric_mean(cls_logits, cls_prob) # P_align
 
             # reg prediction and alignment
             if self.anchor_type == 'anchor_free':
                 reg_dist = scale(self.tood_reg(reg_feat).exp()).float()
                 reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
-                reg_bbox = distance2bbox(
-                    self.anchor_center(anchor) / stride[0],
-                    reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2)  # (b, c, h, w)
+                reg_bbox = distance2bbox(self.anchor_center(anchor) / stride[0], reg_dist)\
+                    .reshape(b, h, w, 4)\
+                    .permute(0, 3, 1, 2)  # (b, c, h, w)
             elif self.anchor_type == 'anchor_based':
                 reg_dist = scale(self.tood_reg(reg_feat)).float()
                 reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
-                reg_bbox = self.bbox_coder.decode(anchor, reg_dist).reshape(
-                    b, h, w, 4).permute(0, 3, 1, 2) / stride[0]
+                reg_bbox = self.bbox_coder.decode(anchor, reg_dist)\
+                               .reshape(b, h, w, 4).permute(0, 3, 1, 2) / stride[0]
             else:
                 raise NotImplementedError(
                     f'Unknown anchor type: {self.anchor_type}.'
                     f'Please use `anchor_free` or `anchor_based`.')
-            reg_offset = self.reg_offset_module(feat)
-            bbox_pred = self.deform_sampling(reg_bbox.contiguous(),
-                                             reg_offset.contiguous())
+            reg_offset = self.reg_offset_module(feat)  # M/O, O
+            # 函数 deform_sampling 是一个特征图采样的操作，
+            # 它根据给定的空间偏移 offset 对输入特征图 feat 进行采样，并返回采样后的特征图 y。
+            bbox_pred = self.deform_sampling(reg_bbox.contiguous(), reg_offset.contiguous())
 
             # After deform_sampling, some boxes will become invalid (The
             # left-top point is at the right or bottom of the right-bottom
             # point), which will make the GIoULoss negative.
+            # 对经过 deformable convolution 采样后的边界框进行校正，
+            # 防止出现无效的边界框，确保 GIoU 损失（Generalized Intersection over Union loss）的计算正确。
             invalid_bbox_idx = (bbox_pred[:, [0]] > bbox_pred[:, [2]]) | \
                                (bbox_pred[:, [1]] > bbox_pred[:, [3]])
             invalid_bbox_idx = invalid_bbox_idx.expand_as(bbox_pred)
