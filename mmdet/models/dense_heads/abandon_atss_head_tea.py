@@ -255,7 +255,7 @@ class AbandonATSSTeaHead(AnchorHead):
             reg_dist = scale(self.tood_reg(reg_feat)).float()
             reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
             # 这里已经decode了，在loss中不再需要了
-            reg_bbox = self.bbox_coder_aban.decode(anchor, reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2) / stride[0]
+            reg_bbox = self.bbox_coder.decode(anchor, reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2) / stride[0]
         else:
             raise NotImplementedError(
                 f'Unknown anchor type: {self.anchor_type}.'
