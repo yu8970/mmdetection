@@ -830,7 +830,7 @@ class AbandonATSSTeaHead(AnchorHead):
         else:
             (all_anchors, all_labels, all_label_weights, all_bbox_targets,
              all_assign_metrics) = multi_apply(
-                 self._get_targets_single,
+                 self._get_targets_single_aban,
                  cls_scores,
                  bbox_preds,
                  anchor_list,
@@ -853,6 +853,121 @@ class AbandonATSSTeaHead(AnchorHead):
         return (anchors_list, labels_list, label_weights_list,
                 bbox_targets_list, norm_alignment_metrics_list)
 
+    def _get_targets_single_aban(self,
+                            cls_scores: Tensor,
+                            bbox_preds: Tensor,
+                            flat_anchors: Tensor,
+                            valid_flags: Tensor,
+                            gt_instances: InstanceData,
+                            img_meta: dict,
+                            gt_instances_ignore: Optional[InstanceData] = None,
+                            unmap_outputs: bool = True) -> tuple:
+        """Compute regression, classification targets for anchors in a single
+        image.
+
+        Args:
+            cls_scores (Tensor): Box scores for each image.
+            bbox_preds (Tensor): Box energies / deltas for each image.
+            flat_anchors (Tensor): Multi-level anchors of the image, which are
+                concatenated into a single tensor of shape (num_anchors ,4)
+            valid_flags (Tensor): Multi level valid flags of the image,
+                which are concatenated into a single tensor of
+                    shape (num_anchors,).
+            gt_instances (:obj:`InstanceData`): Ground truth of instance
+                annotations. It usually includes ``bboxes`` and ``labels``
+                attributes.
+            img_meta (dict): Meta information for current image.
+            gt_instances_ignore (:obj:`InstanceData`, optional): Instances
+                to be ignored during training. It includes ``bboxes`` attribute
+                data that is ignored during training and testing.
+                Defaults to None.
+            unmap_outputs (bool): Whether to map outputs back to the original
+                set of anchors.
+
+        Returns:
+            tuple: N is the number of total anchors in the image.
+                anchors (Tensor): All anchors in the image with shape (N, 4).
+                labels (Tensor): Labels of all anchors in the image with shape
+                    (N,).
+                label_weights (Tensor): Label weights of all anchor in the
+                    image with shape (N,).
+                bbox_targets (Tensor): BBox targets of all anchors in the
+                    image with shape (N, 4).
+                norm_alignment_metrics (Tensor): Normalized alignment metrics
+                    of all priors in the image with shape (N,).
+        """
+        inside_flags = anchor_inside_flags(flat_anchors, valid_flags,
+                                           img_meta['img_shape'][:2],
+                                           self.train_cfg['allowed_border'])
+        if not inside_flags.any():
+            raise ValueError(
+                'There is no valid anchor inside the image boundary. Please '
+                'check the image size and anchor sizes, or set '
+                '``allowed_border`` to -1 to skip the condition.')
+        # assign gt and sample anchors
+        anchors = flat_anchors[inside_flags, :]
+        pred_instances = InstanceData(
+            priors=anchors,
+            scores=cls_scores[inside_flags, :],
+            bboxes=bbox_preds[inside_flags, :])
+        assign_result = self.alignment_assigner.assign(pred_instances,
+                                                       gt_instances,
+                                                       gt_instances_ignore,
+                                                       self.alpha, self.beta)
+        assign_ious = assign_result.max_overlaps
+        assign_metrics = assign_result.assign_metrics
+
+        sampling_result = self.sampler.sample(assign_result, pred_instances,
+                                              gt_instances)
+
+        num_valid_anchors = anchors.shape[0]
+        bbox_targets = torch.zeros_like(anchors)
+        labels = anchors.new_full((num_valid_anchors, ),
+                                  self.num_classes,
+                                  dtype=torch.long)
+        label_weights = anchors.new_zeros(num_valid_anchors, dtype=torch.float)
+        norm_alignment_metrics = anchors.new_zeros(
+            num_valid_anchors, dtype=torch.float)
+
+        pos_inds = sampling_result.pos_inds
+        neg_inds = sampling_result.neg_inds
+        if len(pos_inds) > 0:
+            # point-based
+            pos_bbox_targets = sampling_result.pos_gt_bboxes
+            bbox_targets[pos_inds, :] = pos_bbox_targets
+
+            labels[pos_inds] = sampling_result.pos_gt_labels
+            if self.train_cfg['pos_weight'] <= 0:
+                label_weights[pos_inds] = 1.0
+            else:
+                label_weights[pos_inds] = self.train_cfg['pos_weight']
+        if len(neg_inds) > 0:
+            label_weights[neg_inds] = 1.0
+
+        class_assigned_gt_inds = torch.unique(
+            sampling_result.pos_assigned_gt_inds)
+        for gt_inds in class_assigned_gt_inds:
+            gt_class_inds = pos_inds[sampling_result.pos_assigned_gt_inds ==
+                                     gt_inds]
+            pos_alignment_metrics = assign_metrics[gt_class_inds]
+            pos_ious = assign_ious[gt_class_inds]
+            pos_norm_alignment_metrics = pos_alignment_metrics / (
+                pos_alignment_metrics.max() + 10e-8) * pos_ious.max()
+            norm_alignment_metrics[gt_class_inds] = pos_norm_alignment_metrics
+
+        # map up to original set of anchors
+        if unmap_outputs:
+            num_total_anchors = flat_anchors.size(0)
+            anchors = unmap(anchors, num_total_anchors, inside_flags)
+            labels = unmap(
+                labels, num_total_anchors, inside_flags, fill=self.num_classes)
+            label_weights = unmap(label_weights, num_total_anchors,
+                                  inside_flags)
+            bbox_targets = unmap(bbox_targets, num_total_anchors, inside_flags)
+            norm_alignment_metrics = unmap(norm_alignment_metrics,
+                                           num_total_anchors, inside_flags)
+        return (anchors, labels, label_weights, bbox_targets,
+                norm_alignment_metrics)
 
 class TaskDecomposition(nn.Module):
     """Task decomposition module in task-aligned predictor of TOOD.
