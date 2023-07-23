@@ -15,6 +15,7 @@ from ..task_modules.prior_generators import anchor_inside_flags
 from ..utils import images_to_levels, multi_apply, unmap, sigmoid_geometric_mean
 from .anchor_head import AnchorHead
 from mmdet.structures.bbox import distance2bbox
+from mmcv.ops import deform_conv2d
 
 @MODELS.register_module()
 class AbandonATSSTeaHead(AnchorHead):
@@ -454,6 +455,19 @@ class AbandonATSSTeaHead(AnchorHead):
             loss_cls_aban=losses_cls_aban,
             loss_bbox_aban=losses_bbox_aban,
             )
+
+    def deform_sampling(self, feat: Tensor, offset: Tensor) -> Tensor:
+        """Sampling the feature x according to offset.
+
+        Args:
+            feat (Tensor): Feature
+            offset (Tensor): Spatial offset for feature sampling
+        """
+        # it is an equivalent implementation of bilinear interpolation
+        b, c, h, w = feat.shape
+        weight = feat.new_ones(c, 1, 1, 1)
+        y = deform_conv2d(feat, offset, weight, 1, 0, 1, c, c)
+        return y
 
     def centerness_target(self, anchors: Tensor, gts: Tensor) -> Tensor:
         """Calculate the centerness between anchors and gts.
