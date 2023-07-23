@@ -106,6 +106,7 @@ class AbandonATSSTeaHead(AnchorHead):
         self.loss_centerness = MODELS.build(loss_centerness)
 
         # 解耦模块
+        self.stacked_convs_aban = 6
         self.anchor_type = anchor_type
         self.num_dcn = num_dcn
         self.loss_cls_aban = MODELS.build(loss_cls_aban)
@@ -139,7 +140,7 @@ class AbandonATSSTeaHead(AnchorHead):
         # 解耦模块 start
         self.relu_aban = nn.ReLU()
         self.inter_convs = nn.ModuleList()
-        for i in range(self.stacked_convs):
+        for i in range(self.stacked_convs_aban):
             if i < 0: # self.num_dcn
                 conv_cfg = dict(type='DCNv2', deform_groups=4)
             else:
@@ -148,24 +149,24 @@ class AbandonATSSTeaHead(AnchorHead):
             self.inter_convs.append(ConvModule(chn,self.feat_channels, 3, stride=1, padding=1, conv_cfg=conv_cfg, norm_cfg=self.norm_cfg))
 
         self.cls_decomp = TaskDecomposition(self.feat_channels,
-                                            self.stacked_convs,
-                                            self.stacked_convs * 8,
+                                            self.stacked_convs_aban,
+                                            self.stacked_convs_aban * 8,
                                             self.conv_cfg, self.norm_cfg)
         self.reg_decomp = TaskDecomposition(self.feat_channels,
-                                            self.stacked_convs,
-                                            self.stacked_convs * 8,
+                                            self.stacked_convs_aban,
+                                            self.stacked_convs_aban * 8,
                                             self.conv_cfg, self.norm_cfg)
 
         self.tood_cls = nn.Conv2d(self.feat_channels, self.num_base_priors * self.cls_out_channels, 3, padding=1)
         self.tood_reg = nn.Conv2d(self.feat_channels, self.num_base_priors * 4, 3, padding=1)
 
         self.cls_prob_module = nn.Sequential(
-            nn.Conv2d(self.feat_channels * self.stacked_convs, self.feat_channels // 4, 1),
+            nn.Conv2d(self.feat_channels * self.stacked_convs_aban, self.feat_channels // 4, 1),
             nn.ReLU(inplace=True),
             nn.Conv2d(self.feat_channels // 4, 1, 3, padding=1)
         )
         self.reg_offset_module = nn.Sequential(
-            nn.Conv2d(self.feat_channels * self.stacked_convs,self.feat_channels // 4, 1),
+            nn.Conv2d(self.feat_channels * self.stacked_convs_aban,self.feat_channels // 4, 1),
             nn.ReLU(inplace=True),
             nn.Conv2d(self.feat_channels // 4, 4 * 2, 3, padding=1))
         # 解耦模块 end
@@ -228,16 +229,16 @@ class AbandonATSSTeaHead(AnchorHead):
                 centerness (Tensor): Centerness for a single scale level, the
                     channel number is (N, num_anchors * 1, H, W).
         """
-        cls_feat = x0
-        reg_feat = x0
+        cls_feat_ori = x0
+        reg_feat_ori = x0
         for cls_conv in self.cls_convs:
-            cls_feat = cls_conv(cls_feat)
+            cls_feat_ori = cls_conv(cls_feat_ori)
         for reg_conv in self.reg_convs:
-            reg_feat = reg_conv(reg_feat)
-        cls_score_ori = self.atss_cls(cls_feat)
+            reg_feat_ori = reg_conv(reg_feat_ori)
+        cls_score_ori = self.atss_cls(cls_feat_ori)
         # we just follow atss, not apply exp in bbox_pred
-        bbox_pred_ori = scale(self.atss_reg(reg_feat)).float()
-        centerness = self.atss_centerness(reg_feat)
+        bbox_pred_ori = scale(self.atss_reg(reg_feat_ori)).float()
+        centerness = self.atss_centerness(reg_feat_ori)
 
         # 解耦模块 start
         stride = self.prior_generator.strides[idx]
@@ -272,7 +273,7 @@ class AbandonATSSTeaHead(AnchorHead):
         elif self.anchor_type == 'anchor_based':
             reg_dist = scale(self.tood_reg(reg_feat)).float()
             reg_dist = reg_dist.permute(0, 2, 3, 1).reshape(-1, 4)
-            # 这里已经decode了，在loss中不再需要了
+            # 这里已经decode了，在loss中不再需要了 fixme
             reg_bbox = self.bbox_coder.decode(anchor, reg_dist).reshape(b, h, w, 4).permute(0, 3, 1, 2) / stride[0]
         else:
             raise NotImplementedError(
@@ -451,6 +452,7 @@ class AbandonATSSTeaHead(AnchorHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
+        num_imgs = len(batch_img_metas)
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == self.prior_generator.num_levels
 
@@ -464,12 +466,10 @@ class AbandonATSSTeaHead(AnchorHead):
             batch_gt_instances,
             batch_img_metas,
             batch_gt_instances_ignore=batch_gt_instances_ignore)
-
         avg_factor = reduce_mean(
             torch.tensor(avg_factor, dtype=torch.float, device=device)).item()
 
         # aban
-        num_imgs = len(batch_img_metas)
         flatten_cls_scores = torch.cat([cls_score_aban.permute(0, 2, 3, 1)
                                        .reshape(num_imgs, -1, self.cls_out_channels) for cls_score_aban in cls_scores_aban], 1)
         flatten_bbox_preds = torch.cat([bbox_pred_aban.permute(0, 2, 3, 1)
