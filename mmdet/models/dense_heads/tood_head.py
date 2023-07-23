@@ -326,9 +326,12 @@ class TOODHead(ATSSHead):
         anchors_cy = (anchors[:, 3] + anchors[:, 1]) / 2
         return torch.stack([anchors_cx, anchors_cy], dim=-1)
 
-    def loss_by_feat_single(self, anchors: Tensor, cls_score: Tensor,
-                            bbox_pred: Tensor, labels: Tensor,
-                            label_weights: Tensor, bbox_targets: Tensor,
+    def loss_by_feat_single(self, anchors: Tensor,
+                            cls_score: Tensor,
+                            bbox_pred: Tensor,
+                            labels: Tensor,
+                            label_weights: Tensor,
+                            bbox_targets: Tensor,
                             alignment_metrics: Tensor,
                             stride: Tuple[int, int]) -> dict:
         """Calculate the loss of a single scale level based on the features
@@ -366,8 +369,9 @@ class TOODHead(ATSSHead):
         # TOOD多的部分 start
         targets = labels if self.epoch < self.initial_epoch else (labels, alignment_metrics)
         cls_loss_func = self.initial_loss_cls if self.epoch < self.initial_epoch else self.loss_cls
-        # TOOD多的部分 end
         loss_cls = cls_loss_func(cls_score, targets, label_weights, avg_factor=1.0)
+        # TOOD多的部分 end
+
 
 
         # FG cat_id: [0, num_classes -1], BG cat_id: num_classes

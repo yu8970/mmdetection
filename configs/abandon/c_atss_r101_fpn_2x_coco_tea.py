@@ -56,10 +56,16 @@ model = dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0)),
     # training and testing settings
     train_cfg=dict(
-        assigner=dict(type='ATSSAssigner', topk=9),
+        initial_epoch=4,
+        initial_assigner=dict(type='ATSSAssigner', topk=9),
+        assigner=dict(type='TaskAlignedAssigner', topk=13),
+        alpha=1,
+        beta=6,
         allowed_border=-1,
         pos_weight=-1,
-        debug=False),
+        debug=False
+
+    ),
     test_cfg=dict(
         nms_pre=1000,
         min_bbox_size=0,

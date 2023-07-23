@@ -16,6 +16,8 @@ from ..utils import images_to_levels, multi_apply, unmap, sigmoid_geometric_mean
 from .anchor_head import AnchorHead
 from mmdet.structures.bbox import distance2bbox
 from mmcv.ops import deform_conv2d
+from mmdet.registry import MODELS, TASK_UTILS
+from mmengine import MessageHub
 
 @MODELS.register_module()
 class AbandonATSSTeaHead(AnchorHead):
@@ -81,6 +83,13 @@ class AbandonATSSTeaHead(AnchorHead):
                      type='GIoULoss', loss_weight=1.0),
                  num_dcn: int = 0,
                  anchor_type: str = 'anchor_based',
+                 initial_loss_cls: ConfigType = dict(
+                     type='FocalLoss',
+                     use_sigmoid=True,
+                     activated=True,
+                     gamma=2.0,
+                     alpha=0.25,
+                     loss_weight=1.0),
                  **kwargs) -> None:
         self.pred_kernel_size = pred_kernel_size
         self.stacked_convs = stacked_convs
@@ -101,6 +110,14 @@ class AbandonATSSTeaHead(AnchorHead):
         self.num_dcn = num_dcn
         self.loss_cls_aban = MODELS.build(loss_cls_aban)
         self.loss_bbox_aban = MODELS.build(loss_bbox_aban)
+        if self.train_cfg:
+            self.initial_epoch = self.train_cfg['initial_epoch']
+            self.initial_assigner = TASK_UTILS.build(self.train_cfg['initial_assigner'])
+            self.initial_loss_cls = MODELS.build(initial_loss_cls)
+            self.assigner = self.initial_assigner
+            self.alignment_assigner = TASK_UTILS.build(self.train_cfg['assigner'])
+            self.alpha = self.train_cfg['alpha']
+            self.beta = self.train_cfg['beta']
 
     def _init_layers(self) -> None:
         """Initialize layers of the head."""
@@ -277,7 +294,13 @@ class AbandonATSSTeaHead(AnchorHead):
 
     def loss_by_feat_single(self, anchors: Tensor, cls_score: Tensor,
                             bbox_pred: Tensor, centerness: Tensor,
-                            cls_score_aban: Tensor,bbox_pred_aban: Tensor,
+                            cls_score_aban: Tensor,
+                            bbox_pred_aban: Tensor,
+                            labels_aban: Tensor,
+                            label_weights_aban: Tensor,
+                            bbox_targets_aban: Tensor,
+                            alignment_metrics: Tensor,
+                            stride: Tuple[int, int],
                             labels: Tensor, label_weights: Tensor,
                             bbox_targets: Tensor, avg_factor: float) -> dict:
         """Calculate the loss of a single scale level based on the features
@@ -332,14 +355,22 @@ class AbandonATSSTeaHead(AnchorHead):
         pos_inds = ((labels >= 0) & (labels < bg_class_ind)).nonzero().squeeze(1)
 
         # aban 解耦模块 start
-        bbox_pred_aban = bbox_pred_aban.permute(0, 2, 3, 1).reshape(-1, 4)
-        #alignment_metrics = alignment_metrics.reshape(-1)
-        loss_cls_aban = self.loss_cls_aban(
+        labels_aban = labels_aban.reshape(-1)
+        alignment_metrics = alignment_metrics.reshape(-1)
+        label_weights_aban = label_weights_aban.reshape(-1)
+        bbox_targets_aban = bbox_targets_aban.reshape(-1, 4)
+        targets_aban = labels_aban if self.epoch < self.initial_epoch else (labels_aban, alignment_metrics)
+        cls_loss_func = self.initial_loss_cls if self.epoch < self.initial_epoch else self.loss_cls_aban
+
+        loss_cls_aban = cls_loss_func(
             cls_score_aban,
-            labels,
-            label_weights,
+            targets_aban,
+            label_weights_aban,
             avg_factor=1.0
         )
+        pos_inds_aban = ((labels_aban >= 0) & (labels_aban < bg_class_ind)).nonzero().squeeze(1)
+
+        bbox_pred_aban = bbox_pred_aban.permute(0, 2, 3, 1).reshape(-1, 4)
         # 解耦模块 end
 
         if len(pos_inds) > 0:
@@ -362,13 +393,20 @@ class AbandonATSSTeaHead(AnchorHead):
             loss_centerness = self.loss_centerness(pos_centerness, centerness_targets, avg_factor=avg_factor)
 
             # aban 解耦模块 start
-            #pos_bbox_weight = self.centerness_target(pos_anchors, pos_bbox_targets) if self.epoch < self.initial_epoch else alignment_metrics[pos_inds]
-            pos_bbox_pred_aban = bbox_pred_aban[pos_inds]
+            pos_bbox_targets_aban = bbox_targets_aban[pos_inds_aban]
+            pos_bbox_pred_aban = bbox_pred_aban[pos_inds_aban]
+            pos_anchors_aban = anchors[pos_inds_aban]
+
             pos_decode_bbox_pred_aban = pos_bbox_pred_aban
+            pos_decode_bbox_targets_aban = pos_bbox_targets_aban / stride[0]
+
+            pos_bbox_weight_aban = self.centerness_target(pos_anchors_aban, pos_bbox_targets_aban) \
+                if self.epoch < self.initial_epoch else alignment_metrics[pos_inds_aban]
+
             loss_bbox_aban = self.loss_bbox_aban(
                 pos_decode_bbox_pred_aban,
-                pos_bbox_targets,
-                weight=centerness_targets,
+                pos_decode_bbox_targets_aban,
+                weight=pos_bbox_weight_aban,
                 avg_factor=1.0)
 
         else:
@@ -376,7 +414,7 @@ class AbandonATSSTeaHead(AnchorHead):
             loss_centerness = centerness.sum() * 0
             centerness_targets = bbox_targets.new_tensor(0.)
 
-        return loss_cls, loss_bbox, loss_centerness, centerness_targets.sum(), loss_cls_aban, loss_bbox_aban
+        return loss_cls, loss_bbox, loss_centerness, centerness_targets.sum(), loss_cls_aban, loss_bbox_aban, alignment_metrics.sum(),pos_bbox_weight_aban.sum()
 
     def loss_by_feat(
             self,
@@ -415,23 +453,40 @@ class AbandonATSSTeaHead(AnchorHead):
         assert len(featmap_sizes) == self.prior_generator.num_levels
 
         device = cls_scores[0].device
-        anchor_list, valid_flag_list = self.get_anchors(
-            featmap_sizes, batch_img_metas, device=device)
+        anchor_list, valid_flag_list = self.get_anchors(featmap_sizes, batch_img_metas, device=device)
 
-        cls_reg_targets = self.get_targets(
+        (anchor_list, labels_list, label_weights_list, bbox_targets_list,
+         bbox_weights_list, avg_factor) = self.get_targets(
             anchor_list,
             valid_flag_list,
             batch_gt_instances,
             batch_img_metas,
             batch_gt_instances_ignore=batch_gt_instances_ignore)
 
-        (anchor_list, labels_list, label_weights_list, bbox_targets_list,
-         bbox_weights_list, avg_factor) = cls_reg_targets
         avg_factor = reduce_mean(
             torch.tensor(avg_factor, dtype=torch.float, device=device)).item()
 
+        # aban
+        num_imgs = len(batch_img_metas)
+        flatten_cls_scores = torch.cat([cls_score_aban.permute(0, 2, 3, 1)
+                                       .reshape(num_imgs, -1, self.cls_out_channels) for cls_score_aban in cls_scores_aban], 1)
+        flatten_bbox_preds = torch.cat([bbox_pred_aban.permute(0, 2, 3, 1)
+                                       .reshape(num_imgs, -1, 4) * stride[0] for bbox_pred_aban, stride in
+                                        zip(bbox_preds_aban, self.prior_generator.strides)], 1)
+
+        (anchor_list_aban, labels_list_aban, label_weights_list_aban, bbox_targets_list_aban,
+         alignment_metrics_list) = self.get_targets_aban(
+            flatten_cls_scores,
+            flatten_bbox_preds,
+            anchor_list,
+            valid_flag_list,
+            batch_gt_instances,
+            batch_img_metas,
+            batch_gt_instances_ignore=batch_gt_instances_ignore)
+
+
         losses_cls, losses_bbox, loss_centerness, \
-            bbox_avg_factor, losses_cls_aban, losses_bbox_aban = multi_apply(
+            bbox_avg_factor, losses_cls_aban, losses_bbox_aban, cls_avg_factors_aban, bbox_avg_factors_aban = multi_apply(
                 self.loss_by_feat_single,
                 anchor_list,
                 cls_scores,
@@ -439,6 +494,11 @@ class AbandonATSSTeaHead(AnchorHead):
                 centernesses,
                 cls_scores_aban,
                 bbox_preds_aban,
+                labels_list_aban,
+                label_weights_list_aban,
+                bbox_targets_list_aban,
+                alignment_metrics_list,
+                self.prior_generator.strides,
                 labels_list,
                 label_weights_list,
                 bbox_targets_list,
@@ -447,7 +507,13 @@ class AbandonATSSTeaHead(AnchorHead):
         bbox_avg_factor = sum(bbox_avg_factor)
         bbox_avg_factor = reduce_mean(bbox_avg_factor).clamp_(min=1).item()
         losses_bbox = list(map(lambda x: x / bbox_avg_factor, losses_bbox))
-        losses_bbox_aban = list(map(lambda x: x / bbox_avg_factor, losses_bbox_aban))
+
+        # aban
+        cls_avg_factor_aban = reduce_mean(sum(cls_avg_factors_aban)).clamp_(min=1).item()
+        losses_cls_aban = list(map(lambda x: x / cls_avg_factor_aban, losses_cls))
+        bbox_avg_factor_aban = reduce_mean(sum(bbox_avg_factors_aban)).clamp_(min=1).item()
+        losses_bbox_aban = list(map(lambda x: x / bbox_avg_factor_aban, losses_bbox_aban))
+
         return dict(
             loss_cls=losses_cls,
             loss_bbox=losses_bbox,
@@ -671,6 +737,119 @@ class AbandonATSSTeaHead(AnchorHead):
             int(flags.sum()) for flags in split_inside_flags
         ]
         return num_level_anchors_inside
+
+    def get_targets_aban(self,
+                    cls_scores: List[List[Tensor]],
+                    bbox_preds: List[List[Tensor]],
+                    anchor_list: List[List[Tensor]],
+                    valid_flag_list: List[List[Tensor]],
+                    batch_gt_instances: InstanceList,
+                    batch_img_metas: List[dict],
+                    batch_gt_instances_ignore: OptInstanceList = None,
+                    unmap_outputs: bool = True) -> tuple:
+        """Compute regression and classification targets for anchors in
+        multiple images.
+
+        Args:
+            cls_scores (list[list[Tensor]]): Classification predictions of
+                images, a 3D-Tensor with shape [num_imgs, num_priors,
+                num_classes].
+            bbox_preds (list[list[Tensor]]): Decoded bboxes predictions of one
+                image, a 3D-Tensor with shape [num_imgs, num_priors, 4] in
+                [tl_x, tl_y, br_x, br_y] format.
+            anchor_list (list[list[Tensor]]): Multi level anchors of each
+                image. The outer list indicates images, and the inner list
+                corresponds to feature levels of the image. Each element of
+                the inner list is a tensor of shape (num_anchors, 4).
+            valid_flag_list (list[list[Tensor]]): Multi level valid flags of
+                each image. The outer list indicates images, and the inner list
+                corresponds to feature levels of the image. Each element of
+                the inner list is a tensor of shape (num_anchors, )
+            batch_gt_instances (list[:obj:`InstanceData`]): Batch of
+                gt_instance.  It usually includes ``bboxes`` and ``labels``
+                attributes.
+            batch_img_metas (list[dict]): Meta information of each image, e.g.,
+                image size, scaling factor, etc.
+            batch_gt_instances_ignore (list[:obj:`InstanceData`], Optional):
+                Batch of gt_instances_ignore. It includes ``bboxes`` attribute
+                data that is ignored during training and testing.
+                Defaults to None.
+            unmap_outputs (bool): Whether to map outputs back to the original
+                set of anchors.
+
+        Returns:
+            tuple: a tuple containing learning targets.
+
+                - anchors_list (list[list[Tensor]]): Anchors of each level.
+                - labels_list (list[Tensor]): Labels of each level.
+                - label_weights_list (list[Tensor]): Label weights of each
+                  level.
+                - bbox_targets_list (list[Tensor]): BBox targets of each level.
+                - norm_alignment_metrics_list (list[Tensor]): Normalized
+                  alignment metrics of each level.
+        """
+        num_imgs = len(batch_img_metas)
+        assert len(anchor_list) == len(valid_flag_list) == num_imgs
+
+        # anchor number of multi levels
+        num_level_anchors = [anchors.size(0) for anchors in anchor_list[0]]
+        num_level_anchors_list = [num_level_anchors] * num_imgs
+
+        # concat all level anchors and flags to a single tensor
+        for i in range(num_imgs):
+            assert len(anchor_list[i]) == len(valid_flag_list[i])
+            anchor_list[i] = torch.cat(anchor_list[i])
+            valid_flag_list[i] = torch.cat(valid_flag_list[i])
+
+        # compute targets for each image
+        if batch_gt_instances_ignore is None:
+            batch_gt_instances_ignore = [None] * num_imgs
+        # anchor_list: list(b * [-1, 4])
+
+        # get epoch information from message hub
+        message_hub = MessageHub.get_current_instance()
+        self.epoch = message_hub.get_info('epoch')
+
+        if self.epoch < self.initial_epoch:
+            (all_anchors, all_labels, all_label_weights, all_bbox_targets,
+             all_bbox_weights, pos_inds_list, neg_inds_list,
+             sampling_result) = multi_apply(
+                 super()._get_targets_single,
+                 anchor_list,
+                 valid_flag_list,
+                 num_level_anchors_list,
+                 batch_gt_instances,
+                 batch_img_metas,
+                 batch_gt_instances_ignore,
+                 unmap_outputs=unmap_outputs)
+            all_assign_metrics = [
+                weight[..., 0] for weight in all_bbox_weights
+            ]
+        else:
+            (all_anchors, all_labels, all_label_weights, all_bbox_targets,
+             all_assign_metrics) = multi_apply(
+                 self._get_targets_single,
+                 cls_scores,
+                 bbox_preds,
+                 anchor_list,
+                 valid_flag_list,
+                 batch_gt_instances,
+                 batch_img_metas,
+                 batch_gt_instances_ignore,
+                 unmap_outputs=unmap_outputs)
+
+        # split targets to a list w.r.t. multiple levels
+        anchors_list = images_to_levels(all_anchors, num_level_anchors)
+        labels_list = images_to_levels(all_labels, num_level_anchors)
+        label_weights_list = images_to_levels(all_label_weights,
+                                              num_level_anchors)
+        bbox_targets_list = images_to_levels(all_bbox_targets,
+                                             num_level_anchors)
+        norm_alignment_metrics_list = images_to_levels(all_assign_metrics,
+                                                       num_level_anchors)
+
+        return (anchors_list, labels_list, label_weights_list,
+                bbox_targets_list, norm_alignment_metrics_list)
 
 
 class TaskDecomposition(nn.Module):
