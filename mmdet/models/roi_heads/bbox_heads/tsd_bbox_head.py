@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from mmdet.structures.bbox.bbox_target import bbox_target_tsd
 from mmcv.cnn import ConvModule
-from mmdet.dcn import DeltaCPooling, DeltaRPooling
+from dcn import DeltaCPooling, DeltaRPooling
 from mmdet.models.losses import accuracy
 from .bbox_head import BBoxHead
 from mmdet.registry import MODELS
