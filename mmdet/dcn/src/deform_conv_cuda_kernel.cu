@@ -1,3 +1,6 @@
+#ifndef AT_CHECK
+#define AT_CHECK TORCH_CHECK
+#endif
 /*!
  ******************* BEGIN Caffe Copyright Notice and Disclaimer ****************
  *

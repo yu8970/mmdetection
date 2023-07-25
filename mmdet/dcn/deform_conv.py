@@ -8,7 +8,7 @@ from torch.autograd.function import once_differentiable
 from torch.nn.modules.utils import _pair, _single
 
 from mmengine.logging import print_log
-from .src import deform_conv_cuda
+from . import deform_conv_cuda
 
 
 class DeformConvFunction(Function):

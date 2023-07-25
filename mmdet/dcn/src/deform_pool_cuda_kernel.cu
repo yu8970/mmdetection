@@ -1,3 +1,6 @@
+#ifndef AT_CHECK
+#define AT_CHECK TORCH_CHECK
+#endif
 /*!
  * Copyright (c) 2017 Microsoft
  * Licensed under The MIT License [see LICENSE for details]
