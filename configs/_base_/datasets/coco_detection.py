@@ -1,7 +1,7 @@
 # dataset settings
 dataset_type = 'CocoDataset'
 #data_root = '/root/grad/coco2017/'
-data_root = '/root/coco2017/coco2017'
+data_root = '/root/coco2017/coco2017/'
 # Example to use different file client
 # Method 1: simply set the data root and let the file I/O module
 # automatically infer from prefix (not support LMDB and Memcache yet)

@@ -7,10 +7,9 @@ from .double_bbox_head import DoubleConvFCBBoxHead
 from .multi_instance_bbox_head import MultiInstanceBBoxHead
 from .sabl_head import SABLHead
 from .scnet_bbox_head import SCNetBBoxHead
-from .tsd_bbox_head import TSDSharedFCBBoxHead
 
 __all__ = [
     'BBoxHead', 'ConvFCBBoxHead', 'Shared2FCBBoxHead',
     'Shared4Conv1FCBBoxHead', 'DoubleConvFCBBoxHead', 'SABLHead', 'DIIHead',
-    'SCNetBBoxHead', 'MultiInstanceBBoxHead', 'TSDSharedFCBBoxHead'
+    'SCNetBBoxHead', 'MultiInstanceBBoxHead'
 ]
