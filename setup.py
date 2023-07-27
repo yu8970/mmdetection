@@ -14,12 +14,12 @@ from torch.utils.cpp_extension import (BuildExtension, CppExtension,
 
 
 def readme():
-    with open('/root/grad/mmdetection/README.md', encoding='utf-8') as f:
+    with open('README.md', encoding='utf-8') as f:
         content = f.read()
     return content
 
 
-version_file = '/root/grad/mmdetection/mmdet/version.py'
+version_file = 'mmdet/version.py'
 
 
 def get_version():
@@ -215,17 +215,6 @@ if __name__ == '__main__':
             'optional': parse_requirements('requirements/optional.txt'),
             'mim': parse_requirements('requirements/mminstall.txt'),
         },
-        ext_modules=[
-            make_cuda_ext(
-                name="deform_conv_cuda",
-                module="mmdet.ops.dcn",
-                sources=["/root/grad/mmdetection/mmdet/ops/dcn/src/deform_conv_cuda.cpp", "/root/grad/mmdetection/mmdet/ops/dcn/src/deform_conv_cuda_kernel.cu"],
-            ),
-            make_cuda_ext(
-                name="deform_pool_cuda",
-                module="mmdet.ops.dcn",
-                sources=["/root/grad/mmdetection/mmdet/ops/dcn/src/deform_pool_cuda.cpp", "/root/grad/mmdetection/mmdet/ops/dcn/src/deform_pool_cuda_kernel.cu"],
-            ),
-        ],
+        ext_modules=[],
         cmdclass={'build_ext': BuildExtension},
         zip_safe=False)
