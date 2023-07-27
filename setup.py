@@ -219,12 +219,12 @@ if __name__ == '__main__':
             make_cuda_ext(
                 name="deform_conv_cuda",
                 module="mmdet.ops.dcn",
-                sources=["src/deform_conv_cuda.cpp", "src/deform_conv_cuda_kernel.cu"],
+                sources=["/root/grad/mmdetection/mmdet/ops/dcn/src/deform_conv_cuda.cpp", "/root/grad/mmdetection/mmdet/ops/dcn/src/deform_conv_cuda_kernel.cu"],
             ),
             make_cuda_ext(
                 name="deform_pool_cuda",
                 module="mmdet.ops.dcn",
-                sources=["src/deform_pool_cuda.cpp", "src/deform_pool_cuda_kernel.cu"],
+                sources=["/root/grad/mmdetection/mmdet/ops/dcn/src/deform_pool_cuda.cpp", "/root/grad/mmdetection/mmdet/ops/dcn/src/deform_pool_cuda_kernel.cu"],
             ),
         ],
         cmdclass={'build_ext': BuildExtension},
