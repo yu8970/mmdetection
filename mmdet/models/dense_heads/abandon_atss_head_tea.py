@@ -58,6 +58,7 @@ class AbandonATSSTeaHead(AnchorHead):
     def __init__(self,
                  num_classes: int,
                  in_channels: int,
+                 stacked_convs_aban: int,
                  pred_kernel_size: int = 3,
                  stacked_convs: int = 4,
                  conv_cfg: OptConfigType = None,
@@ -91,6 +92,7 @@ class AbandonATSSTeaHead(AnchorHead):
                      alpha=0.25,
                      loss_weight=1.0),
                  **kwargs) -> None:
+        self.stacked_convs_aban = 6
         self.pred_kernel_size = pred_kernel_size
         self.stacked_convs = stacked_convs
         self.conv_cfg = conv_cfg
@@ -106,7 +108,7 @@ class AbandonATSSTeaHead(AnchorHead):
         self.loss_centerness = MODELS.build(loss_centerness)
 
         # 解耦模块
-        self.stacked_convs_aban = 6
+
         self.anchor_type = anchor_type
         self.num_dcn = num_dcn
         self.loss_cls_aban = MODELS.build(loss_cls_aban)

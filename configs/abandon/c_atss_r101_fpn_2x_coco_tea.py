@@ -33,6 +33,7 @@ model = dict(
         type='AbandonATSSTeaHead',
         num_classes=80,
         in_channels=256,
+        stacked_convs_aban=6,
         stacked_convs=4,
         feat_channels=256,
         anchor_generator=dict(
