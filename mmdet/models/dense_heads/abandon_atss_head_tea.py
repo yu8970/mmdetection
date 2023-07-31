@@ -292,8 +292,10 @@ class AbandonATSSTeaHead(AnchorHead):
         invalid_bbox_idx = invalid_bbox_idx.expand_as(bbox_pred)
         bbox_pred_aban = torch.where(invalid_bbox_idx, reg_bbox, bbox_pred)
         # 解耦模块 end
-
-        return cls_score_ori, bbox_pred_ori, centerness, cls_score_aban, bbox_pred_aban
+        if self.training:
+            return cls_score_ori, bbox_pred_ori, centerness, cls_score_aban, bbox_pred_aban
+        else:
+            return cls_score_ori, bbox_pred_ori, centerness
 
     def loss_by_feat_single(self, anchors: Tensor, cls_score: Tensor,
                             bbox_pred: Tensor, centerness: Tensor,
