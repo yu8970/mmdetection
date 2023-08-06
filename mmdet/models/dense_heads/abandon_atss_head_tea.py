@@ -292,7 +292,7 @@ class AbandonATSSTeaHead(AnchorHead):
         invalid_bbox_idx = invalid_bbox_idx.expand_as(bbox_pred)
         bbox_pred_aban = torch.where(invalid_bbox_idx, reg_bbox, bbox_pred)
         # 解耦模块 end
-        if self.training:
+        if True:#self.training:
             return cls_score_ori, bbox_pred_ori, centerness, cls_score_aban, bbox_pred_aban
         else:
             return cls_score_ori, bbox_pred_ori, centerness
@@ -456,6 +456,8 @@ class AbandonATSSTeaHead(AnchorHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
+        batch_gt_instances_ignore_aban = batch_gt_instances_ignore
+
         num_imgs = len(batch_img_metas)
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == self.prior_generator.num_levels
@@ -474,6 +476,7 @@ class AbandonATSSTeaHead(AnchorHead):
             torch.tensor(avg_factor, dtype=torch.float, device=device)).item()
 
         # aban
+        anchor_list_aban, valid_flag_list_aban = self.get_anchors(featmap_sizes, batch_img_metas, device=device)
         flatten_cls_scores = torch.cat([cls_score_aban.permute(0, 2, 3, 1)
                                        .reshape(num_imgs, -1, self.cls_out_channels) for cls_score_aban in cls_scores_aban], 1)
         flatten_bbox_preds = torch.cat([bbox_pred_aban.permute(0, 2, 3, 1)
@@ -484,11 +487,11 @@ class AbandonATSSTeaHead(AnchorHead):
          alignment_metrics_list) = self.get_targets_aban(
             flatten_cls_scores,
             flatten_bbox_preds,
-            anchor_list,
-            valid_flag_list,
+            anchor_list_aban,
+            valid_flag_list_aban,
             batch_gt_instances,
             batch_img_metas,
-            batch_gt_instances_ignore=batch_gt_instances_ignore)
+            batch_gt_instances_ignore=batch_gt_instances_ignore_aban)
 
 
         losses_cls, losses_bbox, loss_centerness, \
@@ -591,6 +594,8 @@ class AbandonATSSTeaHead(AnchorHead):
         # concat all level anchors and flags to a single tensor
         for i in range(num_imgs):
             assert len(anchor_list[i]) == len(valid_flag_list[i])
+            print("atss:")
+            print(len(anchor_list))
             anchor_list[i] = torch.cat(anchor_list[i])
             valid_flag_list[i] = torch.cat(valid_flag_list[i])
 
@@ -804,6 +809,8 @@ class AbandonATSSTeaHead(AnchorHead):
         # concat all level anchors and flags to a single tensor
         for i in range(num_imgs):
             assert len(anchor_list[i]) == len(valid_flag_list[i])
+            print("abandon")
+            print(len(anchor_list))
             anchor_list[i] = torch.cat(anchor_list[i])
             valid_flag_list[i] = torch.cat(valid_flag_list[i])
 
@@ -820,7 +827,7 @@ class AbandonATSSTeaHead(AnchorHead):
             (all_anchors, all_labels, all_label_weights, all_bbox_targets,
              all_bbox_weights, pos_inds_list, neg_inds_list,
              sampling_result) = multi_apply(
-                 super()._get_targets_single,
+                 self._get_targets_single_aban,
                  anchor_list,
                  valid_flag_list,
                  num_level_anchors_list,

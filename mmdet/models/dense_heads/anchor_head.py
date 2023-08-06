@@ -189,6 +189,8 @@ class AnchorHead(BaseDenseHead):
             featmap_sizes, device=device)
         anchor_list = [multi_level_anchors for _ in range(num_imgs)]
 
+        # 对于每个图像，我们计算多级锚点的有效标志
+        # 这种有效标志通常用于过滤掉一些不在图像区域内的锚框，以减少无效计算和优化目标检测模型的性能。
         # for each image, we compute valid flags of multi level anchors
         valid_flag_list = []
         for img_id, img_meta in enumerate(batch_img_metas):

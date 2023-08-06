@@ -31,22 +31,37 @@ class ATSSHead(AnchorHead):
     Args:
         num_classes (int): Number of categories excluding the background
             category.
+
         in_channels (int): Number of channels in the input feature map.
+        输入特征图中的通道数。256
+
         pred_kernel_size (int): Kernel size of ``nn.Conv2d``
+        卷积核大小 = 3
+
         stacked_convs (int): Number of stacking convs of the head.
+        head堆叠的convs层数
+
         conv_cfg (:obj:`ConfigDict` or dict, optional): Config dict for
             convolution layer. Defaults to None.
+        卷积层的配置dict。默认为“none”。
+
         norm_cfg (:obj:`ConfigDict` or dict): Config dict for normalization
             layer. Defaults to ``dict(type='GN', num_groups=32,
             requires_grad=True)``.
+        normalization层的配置
+
         reg_decoded_bbox (bool): If true, the regression loss would be
             applied directly on decoded bounding boxes, converting both
             the predicted boxes and regression targets to absolute
             coordinates format. Defaults to False. It should be `True` when
             using `IoULoss`, `GIoULoss`, or `DIoULoss` in the bbox head.
+        如果为true，则回归损失将直接应用于解码的边界框，将预测框和回归目标转换为绝对坐标格式。
+        默认为False。在bbox头中使用“IoULoss”、“GIoULoss“或“DIoULoss”时，应为“True”。
+
         loss_centerness (:obj:`ConfigDict` or dict): Config of centerness loss.
             Defaults to ``dict(type='CrossEntropyLoss', use_sigmoid=True,
             loss_weight=1.0)``.
+
         init_cfg (:obj:`ConfigDict` or dict or list[dict] or
             list[:obj:`ConfigDict`]): Initialization config dict.
     """
@@ -86,6 +101,9 @@ class ATSSHead(AnchorHead):
             **kwargs)
 
         self.sampling = False
+
+        # Centerness损失的主要作用是帮助模型更好地预测检测到的边界框与目标中心的关系。
+        # Centerness损失的计算是基于目标的边界框预测以及目标的真实中心位置之间的差异。
         self.loss_centerness = MODELS.build(loss_centerness)
 
     def _init_layers(self) -> None:
@@ -102,6 +120,8 @@ class ATSSHead(AnchorHead):
         pred_pad_size = self.pred_kernel_size // 2
         self.atss_cls = nn.Conv2d(self.feat_channels, self.num_anchors * self.cls_out_channels, self.pred_kernel_size, padding=pred_pad_size)
         self.atss_reg = nn.Conv2d(self.feat_channels, self.num_base_priors * 4, self.pred_kernel_size, padding=pred_pad_size)
+        # 这个模块的作用是对输入进行缩放，其中缩放因子为1.0，即不对输入进行缩放。
+        # Scale(1.0) =>return x * self.scale
         self.scales = nn.ModuleList([Scale(1.0) for _ in self.prior_generator.strides])
         self.atss_centerness = nn.Conv2d(
             self.feat_channels,
@@ -271,6 +291,7 @@ class ATSSHead(AnchorHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
+        # 从cls_scores这个张量中提取每个特征图（featmap）的高度和宽度，并将这些尺寸存储在一个列表featmap_sizes中。
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == self.prior_generator.num_levels
 
@@ -345,15 +366,21 @@ class ATSSHead(AnchorHead):
                     batch_gt_instances_ignore: OptInstanceList = None,
                     unmap_outputs: bool = True) -> tuple:
         """Get targets for ATSS head.
-
+        此方法与“AnchorHead.get_targets（）”几乎相同。除了像父方法那样返回目标外，
+        它还将锚点作为返回元组的第一个元素返回。
         This method is almost the same as `AnchorHead.get_targets()`. Besides
         returning the targets as the parent method does, it also returns the
         anchors as the first element of the returned tuple.
+
+        anchor_list : list[list[tensor]]：0：num_imgs, 1: num_level
+        The sizes of each tensor should be [N, 4]，N = width * height * num_base_anchors
         """
         num_imgs = len(batch_img_metas)
         assert len(anchor_list) == len(valid_flag_list) == num_imgs
 
         # anchor number of multi levels
+        # anchors : [[N,4], [N,4], [N,4], [N,4], [N,4]],一个img下的多层锚框
+        #
         num_level_anchors = [anchors.size(0) for anchors in anchor_list[0]]
         num_level_anchors_list = [num_level_anchors] * num_imgs
 
@@ -441,9 +468,8 @@ class ATSSHead(AnchorHead):
                     (num_neg,).
                 sampling_result (:obj:`SamplingResult`): Sampling results.
         """
-        inside_flags = anchor_inside_flags(flat_anchors, valid_flags,
-                                           img_meta['img_shape'][:2],
-                                           self.train_cfg['allowed_border'])
+        # 检查锚是否在边界内。
+        inside_flags = anchor_inside_flags(flat_anchors, valid_flags, img_meta['img_shape'][:2], self.train_cfg['allowed_border'])
         if not inside_flags.any():
             raise ValueError(
                 'There is no valid anchor inside the image boundary. Please '
